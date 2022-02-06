@@ -1,4 +1,8 @@
+#define HEAPSIZE 10000000
+#define NIL 0
 #define _CRT_SECURE_NO_WARNINGS
+
+
 #include <stdio.h>
 
 enum tag
@@ -36,6 +40,20 @@ struct cell
 
 typedef struct cell cell;
 
+cell heap[HEAPSIZE];
+int hp;//heap pointer
+
+//èâä˙âª
+void initcell(void) {
+	int addr;
+
+	for (addr = 0; addr < HEAPSIZE; addr++) {
+		heap[addr].flag = FRE;
+		heap[addr].cdr = addr + 1;
+	}
+
+	hp = 0;
+}
 
 
 int main(void) {
