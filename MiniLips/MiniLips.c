@@ -2,6 +2,9 @@
 
 #define BUFSIZE 256
 #include <stdio.h>
+#include <ctype.h>
+
+
 
 typedef enum 
 {
@@ -19,7 +22,7 @@ typedef enum
 }flag;
 
 
-struct cell
+typedef struct 
 {
 	tag tag;//種類を記憶しておく場所
 	flag flag;//GC(ガページコレクション)の時に使う目印
@@ -31,9 +34,8 @@ struct cell
 	}val;
 	int car;//アトムが格納されているアドレス
 	int cdr;//次の番地のアドレス
-};
+} cell;
 
-typedef struct cell cell;
 
 //-------read--------
 #define EOL     '\n'
@@ -42,9 +44,6 @@ typedef struct cell cell;
 #define ESCAPE  033
 #define NUL     '\0'
 
-
-
-//----read---------
 typedef enum { 
     LPAREN,// "("
     RPAREN,// ")"
@@ -163,6 +162,25 @@ int symboltoken(char buf[]) {
 
     return(1);
 }
+
+int issymch(char c) {
+    switch (c) {
+    case '!':
+    case '?':
+    case '+':
+    case '-':
+    case '*':
+    case '/':
+    case '=':
+    case '<':
+    case '>': return(1);
+    default:  return(0);
+    }
+}
+
+
+//-------------------------------
+
 
 
 int main(void) {
