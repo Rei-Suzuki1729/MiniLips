@@ -63,15 +63,15 @@ typedef enum {
 } backtrack;
 
 typedef struct {
-    char ch;
-    backtrack flag;
-    toktype type;
-    char buf[BUFSIZE];
+    char ch;               //読み込んだ1文字
+    backtrack flag;        //もう一回読むかどうかを判定
+    toktype type;          //トークンの種類
+    char buf[BUFSIZE];     //トークンの文字列
 } token;
 
 token stok = { GO,OTHER };
 
-
+//scanner
 void gettoken(void) {
     char c;
     int pos;
@@ -180,6 +180,26 @@ int issymch(char c) {
     }
 }
 
+//-----------------------
+
+int freshcell(void) {
+    int res;
+
+    res = hp;
+    hp = heap[hp].cdr;
+    heap[res].cdr = 0;
+    fc--;
+    return(res);
+}
+
+int makenum(int num) {
+    int addr;
+
+    addr = freshcell();
+    SET_TAG(addr, NUM);
+    SET_NUMBER(addr, num);
+    return(addr);
+}
 
 //-------------------------------
 
