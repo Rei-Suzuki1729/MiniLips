@@ -4,7 +4,19 @@
 #define NIL 0
 #define _CRT_SECURE_NO_WARNINGS
 
-
+//-------error code---
+#define CANT_FIND_ERR   1
+#define ARG_SYM_ERR     2
+#define ARG_NUM_ERR     3
+#define ARG_LIS_ERR     4
+#define ARG_LEN0_ERR    5
+#define ARG_LEN1_ERR    6
+#define ARG_LEN2_ERR    7
+#define ARG_LEN3_ERR    8
+#define MALFORM_ERR     9
+#define CANT_READ_ERR   10
+#define ILLEGAL_OBJ_ERR 11
+#define DIV_BY_ZERO     12
 
 
 
@@ -49,6 +61,7 @@ cell heap[HEAPSIZE];
 int hp;//heap pointer
 int fc; //free counter
 
+
 //-------read--------
 #define EOL     '\n'
 #define TAB     '\t'
@@ -84,6 +97,28 @@ typedef struct {
 token stok = { GO,OTHER };
 
 
+
+void initcell(void);
+
+void gettoken(void);
+int numbertoken(char buf[]);
+int symboltoken(char buf[]);
+int issymch(char c);
+
+int freshcell(void);
+int makenum(int num);
+int makesym(char* name);
+int cons(int car, int cdr);
+int read(void);
+int readlist(void);
+
+
+
+int main(void) {
+    gettoken();
+    printf("%s", stok.buf);
+
+}
 
 //初期化・自由化リスト
 void initcell(void) {
@@ -254,10 +289,38 @@ int cons(int car, int cdr) {
 }
 //-------------------------------
 
-
-
-int main(void) {
+int read(void) {
     gettoken();
-    printf("%s", stok.buf);
-
+    switch (stok.type) {
+    case NUMBER:    return(makenum(atoi(stok.buf)));
+    case SYMBOL:    return(makesym(stok.buf));
+    case QUOTE:     return(cons(makesym("quote"), cons(read(), NIL)));
+    case LPAREN:    return(readlist());
+    default:        break;
+    }
+    error(CANT_READ_ERR, "read", NIL);
+    return(0);
 }
+
+int readlist(void) {
+    int car, cdr;
+
+    gettoken();
+    if (stok.type == RPAREN)
+        return(NIL);
+    else
+        if (stok.type == DOT) {
+            cdr = read();
+            if (atomp(cdr))
+                gettoken();
+            return(cdr);
+        }
+        else {
+            stok.flag = BACK;
+            car = read();
+            cdr = readlist();
+            return(cons(car, cdr));
+        }
+}
+
+
