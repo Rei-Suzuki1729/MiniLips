@@ -239,7 +239,6 @@ int makesym(char* name) {
     heap[addr].tag = SYM;
     heap[addr].name = (char*)malloc(SYMSIZE); 
     strcpy(heap[addr].name,name);
-    SET_NAME(addr, name);
     return(addr);
 }
 
