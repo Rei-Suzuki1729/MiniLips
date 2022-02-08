@@ -1,13 +1,16 @@
 #define HEAPSIZE 10000000
+#define BUFSIZE 256
+#define SYMSIZE 256
 #define NIL 0
 #define _CRT_SECURE_NO_WARNINGS
 
-#define BUFSIZE 256
+
+
 
 
 #include <stdio.h>
 #include <ctype.h>
-
+#include <string.h>
 
 
 typedef enum 
@@ -41,12 +44,19 @@ typedef struct
 } cell;
 
 
+
+cell heap[HEAPSIZE];
+int hp;//heap pointer
+int fc; //free counter
+
 //-------read--------
 #define EOL     '\n'
 #define TAB     '\t'
 #define SPACE   ' '
 #define ESCAPE  033
 #define NUL     '\0'
+
+
 
 typedef enum { 
     LPAREN,// "("
@@ -72,6 +82,22 @@ typedef struct {
 } token;
 
 token stok = { GO,OTHER };
+
+
+
+//初期化・自由化リスト
+void initcell(void) {
+    int addr;
+
+    for (addr = 0; addr < HEAPSIZE; addr++) {
+        heap[addr].flag = FRE;
+        heap[addr].cdr = addr + 1;
+    }
+
+    hp = 0;
+    fc = HEAPSIZE;
+}
+
 
 //scanner
 void gettoken(void) {
@@ -182,6 +208,7 @@ int issymch(char c) {
     }
 }
 
+
 //-----------------------
 
 int freshcell(void) {
@@ -194,29 +221,38 @@ int freshcell(void) {
     return(res);
 }
 
+//数アトムを生成
 int makenum(int num) {
     int addr;
 
-cell heap[HEAPSIZE];
-int hp;//heap pointer
-
-//初期化
-void initcell(void) {
-	int addr;
-
-	for (addr = 0; addr < HEAPSIZE; addr++) {
-		heap[addr].flag = FRE;
-		heap[addr].cdr = addr + 1;
-	}
-
-	hp = 0;
-}
     addr = freshcell();
-    SET_TAG(addr, NUM);
-    SET_NUMBER(addr, num);
+    heap[addr].tag = NUM;
+    heap[addr].val.num = num;
     return(addr);
 }
 
+//シンボルアトムの生成
+int makesym(char* name) {
+    int addr;
+
+    addr = freshcell();
+    heap[addr].tag = SYM;
+    heap[addr].name = (char*)malloc(SYMSIZE); 
+    strcpy(heap[addr].name,name);
+    SET_NAME(addr, name);
+    return(addr);
+}
+
+//アトムをくっつける関数
+int cons(int car, int cdr) {
+    int addr;
+
+    addr = freshcell();
+    heap[addr].tag = LIS;
+    heap[addr].car = car;
+    heap[addr].cdr = cdr;
+    return(addr);
+}
 //-------------------------------
 
 
