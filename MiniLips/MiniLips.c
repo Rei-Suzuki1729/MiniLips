@@ -1,6 +1,8 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #define BUFSIZE 256
+
+
 #include <stdio.h>
 #include <ctype.h>
 
@@ -184,7 +186,7 @@ int issymch(char c) {
 
 
 int main(void) {
-	
-
+    gettoken();
+    printf("%s", stok.buf);
 
 }
