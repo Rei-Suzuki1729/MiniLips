@@ -21,9 +21,10 @@
 
 
 #include <stdio.h>
+#include<stdlib.h>
 #include <ctype.h>
 #include <string.h>
-
+#include <setjmp.h>
 
 typedef enum 
 {
@@ -96,9 +97,20 @@ typedef struct {
 
 token stok = { GO,OTHER };
 
-
+jmp_buf buf; //goto
 
 void initcell(void);
+
+//---------------------
+int car(int addr);
+int cdr(int addr);
+int cons(int car, int cdr);
+int caar(int addr);
+int cdar(int addr);
+int cadr(int addr);
+int caddr(int addr);
+//-------------------------
+
 
 void gettoken(void);
 int numbertoken(char buf[]);
@@ -108,17 +120,54 @@ int issymch(char c);
 int freshcell(void);
 int makenum(int num);
 int makesym(char* name);
-int cons(int car, int cdr);
+
 int read(void);
 int readlist(void);
+
+void print(int addr);
+void printlist(int addr);
+int listp(int addr);
+int nullp(int addr);
+
+
+void error(int errnum, char* fun, int arg);
+int length(int addr);
+
 
 
 
 int main(void) {
-    gettoken();
-    printf("%s", stok.buf);
+    printf("MiniLis Ver0.01\n");
+    initcell();
+    int ret = setjmp(buf);
+
+repl:
+    if (ret == 0) {
+        while (1)
+        {
+            printf("> "); fflush(stdout); fflush(stdin);
+            print(read());
+            printf("\n"); fflush(stdout);
+        }
+    }
+    else if (ret == 1) {
+        ret = 0;
+        goto repl;
+    }
+    else
+    {
+        return 0;
+    }
 
 }
+
+
+
+
+
+
+
+
 
 //初期化・自由化リスト
 void initcell(void) {
@@ -134,7 +183,7 @@ void initcell(void) {
 }
 
 
-//scanner
+//--------スキャナー---------------------
 void gettoken(void) {
     char c;
     int pos;
@@ -244,6 +293,7 @@ int issymch(char c) {
 }
 
 
+
 //-----------------------
 
 int freshcell(void) {
@@ -277,6 +327,33 @@ int makesym(char* name) {
     return(addr);
 }
 
+//リスト操作
+int car(int addr) {
+    return(heap[addr].car);
+}
+
+int caar(int addr) {
+    return(car(car(addr)));
+}
+
+int cdar(int addr) {
+    return(cdr(car(addr)));
+}
+
+int cdr(int addr) {
+    return(heap[addr].cdr);
+}
+
+int cadr(int addr) {
+    return(car(cdr(addr)));
+}
+
+int caddr(int addr) {
+    return(car(cdr(cdr(addr))));
+}
+
+
+
 //アトムをくっつける関数
 int cons(int car, int cdr) {
     int addr;
@@ -287,6 +364,19 @@ int cons(int car, int cdr) {
     heap[addr].cdr = cdr;
     return(addr);
 }
+
+int length(int addr) {
+    int len = 0;
+
+    while (!(nullp(addr))) {
+        len++;
+        addr = cdr(addr);
+    }
+    return(len);
+}
+
+
+
 //-------------------------------
 
 int read(void) {
@@ -324,3 +414,115 @@ int readlist(void) {
 }
 
 
+//-----print------------------
+void print(int addr) {
+    switch (heap[addr].tag) {
+    case NUM:   printf("%d", heap[addr].val.num); break;
+    case SYM:   printf("%s", heap[addr].name); break;
+    case SUBR:  printf("<subr>"); break;
+    case LIS: { printf("(");
+        printlist(addr); break; }
+    default:    printf("<undef>"); break;
+    }
+}
+
+
+
+void printlist(int addr) {
+    if (addr == 0 || addr == 1)
+        printf(")");
+    else
+        if ((!(listp(cdr(addr)))) && (!(nullp(cdr(addr))))) {
+            print(car(addr));
+            printf(" . ");
+            print(cdr(addr));
+            printf(")");
+        }
+        else {
+            print(heap[addr].car);
+            if (!(heap[addr].cdr == 0 || heap[addr].cdr == 1)) {
+                printf(" ");
+            }
+            printlist(heap[addr].cdr);
+        }
+}
+
+int atomp(int addr) {
+    if (heap[addr].tag == NUM || heap[addr].tag == SYM)
+        return(1);
+    else
+        return(0);
+}
+
+int numberp(int addr) {
+    if (heap[addr].tag == NUM)
+        return(1);
+    else
+        return(0);
+}
+
+int symbolp(int addr) {
+    if (heap[addr].tag == SYM)
+        return(1);
+    else
+        return(0);
+}
+//
+int listp(int addr) {
+    if (heap[addr].tag == LIS || addr == 0 || addr == 1)
+        return(1);
+    else
+        return(0);
+}
+
+//
+int nullp(int addr) {
+    if (addr == 0 || addr == 1)
+        return(1);
+    else
+        return(0);
+}
+
+
+//-------エラー処理------
+void error(int errnum, char* fun, int arg) {
+    switch (errnum) {
+    case CANT_FIND_ERR: {printf("%s can't find definition of ", fun);
+        print(arg); break; }
+
+    case CANT_READ_ERR: {printf("%s can't read of ", fun);
+        break; }
+
+    case ILLEGAL_OBJ_ERR: {printf("%s got an illegal object ", fun);
+        print(arg); break; }
+
+    case ARG_SYM_ERR: {printf("%s require symbol but got ", fun);
+        print(arg); break; }
+
+    case ARG_NUM_ERR: {printf("%s require number but got ", fun);
+        print(arg); break; }
+
+    case ARG_LIS_ERR: {printf("%s require list but got ", fun);
+        print(arg); break; }
+
+    case ARG_LEN0_ERR: {printf("%s require 0 arg but got %d", fun, length(arg));
+        break; }
+
+    case ARG_LEN1_ERR: {printf("%s require 1 arg but got %d", fun, length(arg));
+        break; }
+
+    case ARG_LEN2_ERR: {printf("%s require 2 args but got %d", fun, length(arg));
+        break; }
+
+    case ARG_LEN3_ERR: {printf("%s require 3 args but got %d", fun, length(arg));
+        break; }
+
+    case MALFORM_ERR: {printf("%s got malformed args ", fun);
+        print(arg); break; }
+
+    case DIV_BY_ZERO: {printf("%s divide by zero ", fun);
+        print(arg); break; }
+    }
+    printf("\n");
+    longjmp(buf, 1);
+}
