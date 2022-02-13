@@ -3,6 +3,7 @@
 #define BUFSIZE 256
 #define SYMSIZE 256
 #define NIL 0
+#define T 4
 #define _CRT_SECURE_NO_WARNINGS
 
 //-------error code---
@@ -34,6 +35,7 @@ typedef enum
 	SYM,//シンボル
 	LIS,//リスト
 	SUBR,//組み込み関数
+    FUNC
 }tag;
 
 typedef enum 
@@ -161,14 +163,38 @@ int pop(void);
 void error(int errnum, char* fun, int arg);
 
 
+//---subr-------
 int f_plus(int arglist);
 int f_minus(int arglist);
 int f_mult(int arglist);
 int f_div(int arglist);
 int f_exit(int arglist);
-
-
-
+int f_car(int arglist);
+int f_cdr(int arglist);
+int f_cons(int arglist);
+int f_length(int arglist);
+int f_list(int arglist);
+int f_nullp(int arglist);
+int f_atomp(int arglist);
+int f_eq(int arglist);
+int f_setq(int arglist);
+int f_oblist(int arglist);
+int f_defun(int arglist);
+int f_if(int arglist);
+int f_cond(int arglist);
+int f_numeqp(int arglist);
+int f_numberp(int arglist);
+int f_symbolp(int arglist);
+int f_listp(int arglist);
+int f_greater(int arglist);
+int f_eqgreater(int arglist);
+int f_smaller(int arglist);
+int f_eqsmaller(int arglist);
+int f_eval(int arglist);
+int f_apply(int arglist);
+int f_read(int arglist);
+int f_print(int arglist);
+int f_begin(int arglist);
 
 
 
@@ -197,8 +223,6 @@ repl:
     }
 
 }
-
-
 
 
 //初期化・自由化リスト
@@ -270,6 +294,37 @@ int findsym(int sym) {
 
 
 //-----------------------
+
+//-------デバッグ用------------------    
+void cellprint(int addr) {
+    switch (heap[addr].flag) {
+    case FRE:   printf("FRE "); break;
+    case USE:   printf("USE "); break;
+    }
+    switch (heap[addr].tag) {
+    case EMP:   printf("EMP    "); break;
+    case NUM:   printf("NUM    "); break;
+    case SYM:   printf("SYM    "); break;
+    case LIS:   printf("LIS    "); break;
+    case SUBR:  printf("SUBR   "); break;
+    case FUNC:  printf("FUNC   "); break;
+    }
+    printf("%07d ", heap[addr].car);
+    printf("%07d ", heap[addr].cdr);
+    printf("%07d ", heap[addr].val.bind);
+    printf("%s \n", heap[addr].name);
+}
+
+//ヒープダンプ  
+void heapdump(int start, int end) {
+    int i;
+
+    printf("addr    F   TAG    CAR     CDR     BIND    NAME\n");
+    for (i = start; i <= end; i++) {
+        printf("%07d ", i);
+        cellprint(i);
+    }
+}
 
 //---------------------リスト操作-------------------------
 int car(int addr) {
@@ -360,6 +415,7 @@ int makesym(char* name) {
 void push(int pt) {
     stack[sp++] = pt;
 }
+
 int pop(void) {
     return(stack[--sp]);
 }
@@ -541,6 +597,8 @@ void printlist(int addr) {
         }
 }
 //----------------------------------------------------------
+
+
 //-----------eval-------------------------------------------
 
 int eval(int addr) {
@@ -567,13 +625,15 @@ int eval(int addr) {
                 error(ARG_SYM_ERR, "eval", addr);
             if (subrp(car(addr)))
                 return(apply(car(addr), evlis(cdr(addr))));
+            if (functionp(car(addr)))
+                return(apply(car(addr), evlis(cdr(addr))));
         }
     error(CANT_FIND_ERR, "eval", addr);
     return(0);
 }
 
 int apply(int func, int args) {
-    int symaddr;
+    int symaddr, varlist, body, res;
 
     symaddr = findsym(func); //組み込み関数の場合はdefsubrで定義している
     if (symaddr == -1)
@@ -581,6 +641,15 @@ int apply(int func, int args) {
     else {
         switch (heap[symaddr].tag) {
         case SUBR:  return((heap[symaddr].val.subr)(args));
+        case FUNC: {    varlist = car(heap[symaddr].val.bind);
+            body = cdr(heap[symaddr].val.bind);
+            bindarg(varlist, args);
+            while (!(body == 0 || body == 1)) {
+                res = eval(car(body));
+                body = cdr(body);
+            }
+            unbind();
+            return(res); }
         default:    error(ILLEGAL_OBJ_ERR, "eval", symaddr);
         }
     }
@@ -671,6 +740,17 @@ int subrp(int addr) {
         return(0);
 }
 
+
+int functionp(int addr) {
+    int val;
+
+    val = findsym(addr);
+    if (val != -1)
+        return(heap[val].tag == FUNC);
+    else
+        return(0);
+}
+
 //-------エラー処理------
 void error(int errnum, char* fun, int arg) {
     switch (errnum) {
@@ -722,6 +802,7 @@ void defsubr(char* symname, int(*func)(int)) {
     bindfunc(symname, SUBR, func);
 }
 
+
 void bindfunc(char* name, tag tag, int(*func)(int)) {
     int sym, val;
 
@@ -733,6 +814,17 @@ void bindfunc(char* name, tag tag, int(*func)(int)) {
     bindsym(sym, val);
 }
 
+void bindfunc1(char* name, int addr) {
+    int sym, val;
+
+    sym = makesym(name);
+    val = freshcell();
+    heap[val].tag = FUNC;
+    heap[val].val.bind = addr;
+    heap[val].cdr = 0;
+    bindsym(sym, val);
+}
+
 void initsubr(void) {
     defsubr("+", f_plus);
     defsubr("-", f_minus);
@@ -740,6 +832,18 @@ void initsubr(void) {
     defsubr("/", f_div);
     defsubr("exit", f_exit);
     defsubr("quit", f_exit);
+    defsubr("car", f_car);
+    defsubr("cdr", f_cdr);
+    defsubr("cons", f_cons);
+    defsubr("list", f_list);
+    defsubr("eq", f_eq);
+    defsubr("null", f_nullp);
+    defsubr("atom", f_atomp);
+    defsubr("oblist", f_oblist);
+    defsubr("read", f_read);
+    defsubr("eval", f_eval);
+    defsubr("apply", f_apply);
+    defsubr("print", f_print);
 }
    
 
@@ -798,7 +902,6 @@ int f_div(int arglist) {
     return(makenum(res));
 }
 
-
 int f_exit(int arglist) {
     int addr;
 
@@ -808,3 +911,182 @@ int f_exit(int arglist) {
     printf("- good bye -\n");
     longjmp(buf, 2);
 }
+
+int f_car(int arglist) {
+    int arg1;
+
+    arg1 = car(arglist);
+    return(car(arg1));
+}
+
+int f_cdr(int arglist) {
+    int arg1;
+
+    arg1 = car(arglist);
+    return(cdr(arg1));
+}
+
+int f_cons(int arglist) {
+    int arg1, arg2;
+
+    arg1 = car(arglist);
+    arg2 = cadr(arglist);
+    return(cons(arg1, arg2));
+}
+
+int f_list(int arglist) {
+    return(list(arglist));
+}
+
+int f_eq(int arglist) {
+    int arg1, arg2;
+
+    arg1 = car(arglist);
+    arg2 = cadr(arglist);
+    if (eqp(arg1, arg2))
+        return(T);
+    else
+        return(NIL);
+}
+
+int f_nullp(int arglist) {
+    int arg;
+
+    arg = car(arglist);
+    if (nullp(arg))
+        return(T);
+    else
+        return(NIL);
+}
+
+int f_atomp(int arglist) {
+    int arg;
+
+    arg = car(arglist);
+    if (atomp(arg))
+        return(T);
+    else
+        return(NIL);
+}
+
+int f_length(int arglist) {
+    return(makenum(length(car(arglist))));
+}
+
+int f_numeqp(int arglist) {
+    int num1, num2;
+
+    num1 = heap[car(arglist)].val.num;
+    num2 = heap[cadr(arglist)].val.num;
+
+    if (num1 == num2)
+        return(T);
+    else
+        return(NIL);
+}
+
+int f_symbolp(int arglist) {
+    if (symbolp(car(arglist)))
+        return(T);
+    else
+        return(NIL);
+}
+
+int f_numberp(int arglist) {
+    if (numberp(car(arglist)))
+        return(T);
+    else
+        return(NIL);
+}
+
+int f_listp(int arglist) {
+    if (listp(car(arglist)))
+        return(T);
+    else
+        return(NIL);
+}
+
+int f_smaller(int arglist) {
+    int num1, num2;
+
+    num1 = heap[car(arglist)].val.num;
+    num2 = heap[cadr(arglist)].val.num;
+
+    if (num1 < num2)
+        return(T);
+    else
+        return(NIL);
+}
+
+int f_eqsmaller(int arglist) {
+    int num1, num2;
+
+    num1 = heap[car(arglist)].val.num;
+    num2 = heap[cadr(arglist)].val.num;
+
+    if (num1 <= num2)
+        return(T);
+    else
+        return(NIL);
+}
+
+int f_greater(int arglist) {
+    int num1, num2;
+
+    num1 = heap[car(arglist)].val.num;
+    num2 = heap[cadr(arglist)].val.num;
+
+    if (num1 > num2)
+        return(T);
+    else
+        return(NIL);
+}
+
+int f_eqgreater(int arglist) {
+    int num1, num2;
+
+    num1 = heap[car(arglist)].val.num;
+    num2 = heap[cadr(arglist)].val.num;
+
+    if (num1 >= num2)
+        return(T);
+    else
+        return(NIL);
+}
+
+int f_oblist(int arglist) {
+    int addr, addr1, res;
+
+    res = NIL;
+    addr = ep;
+    while (!(nullp(addr))) {
+        addr1 = caar(addr);
+        res = cons(addr1, res);
+        addr = cdr(addr);
+    }
+    return(res);
+}
+
+int f_read(int arglist) {
+    return(read());
+}
+
+int f_print(int arglist) {
+    print(car(arglist));
+    printf("\n");
+    return(T);
+}
+
+
+int f_eval(int arglist) {
+    return(eval(car(arglist)));
+}
+
+int f_apply(int arglist) {
+    int arg1, arg2;
+
+    arg1 = car(arglist);
+    arg2 = cadr(arglist);
+    return(apply(arg1, arg2));
+}
+
