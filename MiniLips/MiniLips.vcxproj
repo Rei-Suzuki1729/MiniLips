@@ -141,6 +141,9 @@
   <ItemGroup>
     <ClCompile Include="MiniLips.c" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="MiniLips.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
