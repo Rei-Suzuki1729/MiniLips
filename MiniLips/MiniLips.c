@@ -317,6 +317,7 @@ void cellprint(int addr) {
     case SYM:   printf("SYM    "); break;
     case LIS:   printf("LIS    "); break;
     case SUBR:  printf("SUBR   "); break;
+    case FSUBR: printf("FSUBR  "); break;
     case FUNC:  printf("FUNC   "); break;
     }
     printf("%07d ", heap[addr].car);
@@ -430,7 +431,7 @@ int pop(void) {
     return(stack[--sp]);
 }
 
-
+//arglistスタックのpush/pop
 void argpush(int addr) {
     argstk[ap++] = addr;
 }
@@ -592,6 +593,8 @@ void print(int addr) {
     case NUM:   printf("%d", heap[addr].val.num); break;
     case SYM:   printf("%s", heap[addr].name); break;
     case SUBR:  printf("<subr>"); break;
+    case FSUBR: printf("<fsubr>"); break;
+    case FUNC:  printf("<function>"); break;
     case LIS: { printf("(");
         printlist(addr); break; }
     default:    printf("<undef>"); break;
@@ -610,7 +613,7 @@ void printlist(int addr) {
         }
         else {
             print(heap[addr].car);
-            if (!(heap[addr].cdr == 0 || heap[addr].cdr == 1)) {
+            if (!((heap[addr].cdr == 0) || (heap[addr].cdr == 1))) {
                 printf(" ");
             }
             printlist(heap[addr].cdr);
@@ -668,7 +671,7 @@ int apply(int func, int args) {
         case FUNC: {    varlist = car(heap[symaddr].val.bind);
             body = cdr(heap[symaddr].val.bind);
             bindarg(varlist, args);
-            while (!(body == 0 || body == 1)) {
+            while (!((body == 0) || (body == 1))) {
                 res = eval(car(body));
                 body = cdr(body);
             }
@@ -684,7 +687,7 @@ void bindarg(int varlist, int arglist) {
     int arg1, arg2;
 
     push(ep);
-    while (!(varlist == 0 || varlist == 1)) {
+    while (!((varlist == 0) || (varlist == 1))) {
         arg1 = car(varlist);
         arg2 = car(arglist);
         assocsym(arg1, arg2);
@@ -702,7 +705,7 @@ int evlis(int addr) {
     int car_addr, cdr_addr;
 
     argpush(addr);
-    if (addr ==0 ||addr ==1) {
+    if ((addr ==0) ||(addr ==1)) {
         argpop();
         return(addr);
     }
@@ -718,7 +721,7 @@ int evlis(int addr) {
 
 //アトムかどうかタグで判定
 int atomp(int addr) {
-    if (heap[addr].tag == NUM || heap[addr].tag == SYM)
+    if ((heap[addr].tag == NUM) || (heap[addr].tag == SYM))
         return(1);
     else
         return(0);
@@ -739,14 +742,14 @@ int symbolp(int addr) {
 }
 //リストかどうかタグで判定
 int listp(int addr) {
-    if (heap[addr].tag == LIS || addr == 0 || addr == 1)
+    if ((heap[addr].tag == LIS) || (addr == 0) || (addr == 1))
         return(1);
     else
         return(0);
 }
 //番地が0か1の判定場合
 int nullp(int addr) {
-    if (addr == 0 || addr == 1)
+    if ((addr == 0) || (addr == 1))
         return(1);
     else
         return(0);
@@ -917,7 +920,7 @@ int f_plus(int arglist) {
     int arg, res;
 
     res = 0;
-    while (!(arglist == 0 || arglist == 1)) {
+    while (!((arglist == 0) || (arglist == 1))) {
         arg = heap[car(arglist)].val.num;
         arglist = cdr(arglist);
         res = res + arg;
@@ -930,7 +933,7 @@ int f_minus(int arglist) {
 
     res = heap[car(arglist)].val.num;
     arglist = cdr(arglist);
-    while (!(arglist == 0 || arglist == 1)) {
+    while (!((arglist == 0) || (arglist == 1))) {
         arg = heap[car(arglist)].val.num;
         arglist = cdr(arglist);
         res = res - arg;
@@ -943,7 +946,7 @@ int f_mult(int arglist) {
 
     res = heap[car(arglist)].val.num;
     arglist = cdr(arglist);
-    while (!(arglist == 0 || arglist == 1)) {
+    while (!((arglist == 0) || (arglist == 1))) {
         arg = heap[car(arglist)].val.num;
         arglist = cdr(arglist);
         res = res * arg;
@@ -956,7 +959,7 @@ int f_div(int arglist) {
 
     res = heap[car(arglist)].val.num;
     arglist = cdr(arglist);
-    while (!(arglist == 0 || arglist == 1)) {
+    while (!((arglist == 0) || (arglist == 1))) {
         arg = heap[car(arglist)].val.num;
         if (arg == 0)
             error(DIV_BY_ZERO, "/", arglist);
