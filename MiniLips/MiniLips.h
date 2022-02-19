@@ -10,55 +10,55 @@
 
 typedef enum
 {
-	EMP,//空
-	NUM,//数
-	SYM,//シンボル
-	LIS,//リスト
-	SUBR,//組み込み関数
-	FSUBR,//特殊な組み込み関数
-	FUNC
+    EMP,//空
+    NUM,//数
+    SYM,//シンボル
+    LIS,//リスト
+    SUBR,//組み込み関数
+    FSUBR,//特殊な組み込み関数
+    FUNC
 }tag;
 
 typedef enum
 {
-	FRE,
-	USE
+    FRE,
+    USE
 }flag;
 
 typedef struct
 {
-	tag tag;//種類を記憶しておく場所
-	flag flag;//GC(ガページコレクション)の時に使う目印
-	char* name;//シンボルの名前を記憶する場所
-	union {
-		int num;//数アトムとして使われている場合のその数の値
-		int bind;//参照する場合の参照する番地
-		int (*subr) ();//関数ポインタ
-	}val;
-	int car;//アトムが格納されているアドレス
-	int cdr;//次の番地のアドレス
+    tag tag;//種類を記憶しておく場所
+    flag flag;//GC(ガページコレクション)の時に使う目印
+    char* name;//シンボルの名前を記憶する場所
+    union {
+        int num;//数アトムとして使われている場合のその数の値
+        int bind;//参照する場合の参照する番地
+        int (*subr) ();//関数ポインタ
+    }val;
+    int car;//アトムが格納されているアドレス
+    int cdr;//次の番地のアドレス
 } cell;
 
 typedef enum {
-	LPAREN,// "("
-	RPAREN,// ")"
-	QUOTE, // "\"
-	DOT,   // "."
-	NUMBER,
-	SYMBOL,
-	OTHER
+    LPAREN,// "("
+    RPAREN,// ")"
+    QUOTE, // "\"
+    DOT,   // "."
+    NUMBER,
+    SYMBOL,
+    OTHER
 } toktype;
 
 typedef enum {
-	GO,
-	BACK
+    GO,
+    BACK
 } backtrack;
 
 typedef struct {
-	char ch;               //読み込んだ1文字
-	backtrack flag;        //もう一回読むかどうかを判定
-	toktype type;          //トークンの種類
-	char buf[BUFSIZE];     //トークンの文字列
+    char ch;               //読み込んだ1文字
+    backtrack flag;        //もう一回読むかどうかを判定
+    toktype type;          //トークンの種類
+    char buf[BUFSIZE];     //トークンの文字列
 } token;
 
 
