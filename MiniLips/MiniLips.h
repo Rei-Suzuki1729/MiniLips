@@ -1,9 +1,8 @@
-#define _CRT_SECURE_NO_WARNINGS
-
 #define HEAPSIZE 10000000
+#define FREESIZE       50
 #define STACKSIZE  30000
-#define BUFSIZE 256
 #define SYMSIZE 256
+#define BUFSIZE 256
 #define NIL 0
 #define T 4
 
@@ -26,8 +25,6 @@ typedef enum
 	USE
 }flag;
 
-
-
 typedef struct
 {
 	tag tag;//種類を記憶しておく場所
@@ -42,7 +39,6 @@ typedef struct
 	int cdr;//次の番地のアドレス
 } cell;
 
-
 typedef enum {
 	LPAREN,// "("
 	RPAREN,// ")"
@@ -52,7 +48,6 @@ typedef enum {
 	SYMBOL,
 	OTHER
 } toktype;
-
 
 typedef enum {
 	GO,
@@ -66,6 +61,9 @@ typedef struct {
 	char buf[BUFSIZE];     //トークンの文字列
 } token;
 
+
+
+
 //------pointer----
 int ep; //environment pointer
 int hp; //heap pointer 
@@ -74,6 +72,37 @@ int fc; //free counter
 int ap; //arglist pointer
 
 
+#define GET_CAR(addr)       heap[addr].car
+#define GET_CDR(addr)       heap[addr].cdr
+#define GET_NUMBER(addr)    heap[addr].val.num
+#define GET_NAME(addr)      heap[addr].name
+#define GET_TAG(addr)       heap[addr].tag
+#define GET_BIND(addr)      heap[addr].val.bind
+#define GET_SUBR(addr)      heap[addr].val.subr
+#define GET_FLAG(addr)      heap[addr].flag
+#define SET_TAG(addr,x)     heap[addr].tag = x
+#define SET_CAR(addr,x)     heap[addr].car = x
+#define SET_CDR(addr,x)     heap[addr].cdr = x
+#define SET_NUMBER(addr,x)  heap[addr].val.num = x
+#define SET_BIND(addr,x)    heap[addr].val.bind = x
+#define SET_NAME(addr,x)    heap[addr].name = (char *)malloc(SYMSIZE); strcpy(heap[addr].name,x)
+#define SET_SUBR(addr,x)    heap[addr].val.subr = x
+#define IS_SYMBOL(addr)     heap[addr].tag == SYM
+#define IS_NUMBER(addr)     heap[addr].tag == NUM
+#define IS_LIST(addr)       heap[addr].tag == LIS
+#define IS_NIL(addr)        (addr == 0 || addr == 1)
+#define IS_SUBR(addr)       heap[addr].tag == SUBR
+#define IS_FSUBR(addr)      heap[addr].tag == FSUBR
+#define IS_FUNC(addr)       heap[addr].tag == FUNC
+#define IS_EMPTY(addr)      heap[addr].tag  == EMP
+#define HAS_NAME(addr,x)    strcmp(heap[addr].name,x) == 0
+#define SAME_NAME(addr1,addr2) strcmp(heap[addr1].name, heap[addr2].name) == 0
+#define EQUAL_STR(x,y)      strcmp(x,y) == 0
+#define MARK_CELL(addr)     heap[addr].flag = USE
+#define NOMARK_CELL(addr)   heap[addr].flag = FRE
+#define USED_CELL(addr)     heap[addr].flag == USE
+#define FREE_CELL(addr)     heap[addr].flag == FRE
+
 
 //-------read--------
 #define EOL     '\n'
@@ -81,10 +110,6 @@ int ap; //arglist pointer
 #define SPACE   ' '
 #define ESCAPE  033
 #define NUL     '\0'
-
-
-
-
 
 //-------error code---
 #define CANT_FIND_ERR   1
@@ -100,14 +125,34 @@ int ap; //arglist pointer
 #define ILLEGAL_OBJ_ERR 11
 #define DIV_BY_ZERO     12
 
-
-
+//-------arg check code--
+#define NUMLIST_TEST    1
+#define SYMBOL_TEST     2
+#define NUMBER_TEST     3
+#define LIST_TEST       4
+#define LEN0_TEST       5
+#define LEN1_TEST       6
+#define LEN2_TEST       7
+#define LEN3_TEST       8
+#define LENS1_TEST      9
+#define LENS2_TEST      10
+#define COND_TEST       11  
 
 //--------------------------
 void initcell(void);
 int freshcell(void);
+void bindsym(int sym, int val);
 void assocsym(int sym, int val);
 int findsym(int sym);
+void cellprint(int addr);
+void heapdump(int start, int end);
+void markoblist(void);
+void markcell(int addr);
+void gbcmark(void);
+void gbcsweep(void);
+void clrcell(int addr);
+void gbc(void);
+void checkgbc(void);
 //---------------------
 int car(int addr);
 int cdr(int addr);
@@ -155,13 +200,16 @@ int fsubrp(int addr);
 int functionp(int addr);
 void initsubr(void);
 void defsubr(char* symname, int(*func)(int));
+void deffsubr(char* symname, int(*func)(int));
 void bindfunc(char* name, tag tag, int(*func)(int));
+void bindfunc1(char* name, int addr);
 void push(int pt);
 int pop(void);
 void argpush(int addr);
 void argpop(void);
 void error(int errnum, char* fun, int arg);
-
+void checkarg(int test, char* fun, int arg);
+int isnumlis(int arg);
 
 //---subr-------
 int f_plus(int arglist);

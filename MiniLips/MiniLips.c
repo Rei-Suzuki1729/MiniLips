@@ -1,3 +1,5 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <stdio.h>
 #include<stdlib.h>
 #include <ctype.h>
@@ -68,7 +70,7 @@ int freshcell(void) {
 
     res = hp;
     hp = heap[hp].cdr;
-    heap[res].cdr = 0;
+    SET_CDR(res, 0);
     fc--;
     return(res);
 }
@@ -82,7 +84,7 @@ void bindsym(int sym, int val) {
     if (addr == 0)
         assocsym(sym, val);
     else
-        heap[addr].cdr = val;
+        SET_CDR(addr, val);
 }
 
 
@@ -114,11 +116,11 @@ int findsym(int sym) {
 
 //-------デバッグ用------------------    
 void cellprint(int addr) {
-    switch (heap[addr].flag) {
+    switch (GET_FLAG(addr)) {
     case FRE:   printf("FRE "); break;
     case USE:   printf("USE "); break;
     }
-    switch (heap[addr].tag) {
+    switch (GET_TAG(addr)) {
     case EMP:   printf("EMP    "); break;
     case NUM:   printf("NUM    "); break;
     case SYM:   printf("SYM    "); break;
@@ -127,10 +129,10 @@ void cellprint(int addr) {
     case FSUBR: printf("FSUBR  "); break;
     case FUNC:  printf("FUNC   "); break;
     }
-    printf("%07d ", heap[addr].car);
-    printf("%07d ", heap[addr].cdr);
-    printf("%07d ", heap[addr].val.bind);
-    printf("%s \n", heap[addr].name);
+    printf("%07d ", GET_CAR(addr));
+    printf("%07d ", GET_CDR(addr));
+    printf("%07d ", GET_BIND(addr));
+    printf("%s \n", GET_NAME(addr));
 }
 
 //ヒープダンプ  
@@ -144,9 +146,98 @@ void heapdump(int start, int end) {
     }
 }
 
+//---------ガベージコレクション-----------
+void gbc(void) {
+    int addr;
+
+    printf("enter GBC free=%d\n", fc); fflush(stdout);
+    gbcmark();
+    gbcsweep();
+    fc = 0;
+    for (addr = 0; addr < HEAPSIZE; addr++)
+        if (IS_EMPTY(addr))
+            fc++;
+    printf("exit GBC free=%d\n", fc); fflush(stdout);
+}
+
+void markoblist(void) {
+    int addr;
+
+    addr = ep;
+    while (!(nullp(addr))) {
+        MARK_CELL(addr);
+        addr = cdr(addr);
+    }
+    MARK_CELL(0);
+}
+
+void markcell(int addr) {
+    if (USED_CELL(addr))
+        return;
+
+    MARK_CELL(addr);
+    if (car(addr) != 0)
+        markcell(car(addr));
+
+    if (cdr(addr) != 0)
+        markcell(cdr(addr));
+
+    if ((GET_BIND(addr) != 0) && (IS_FUNC(addr)))
+        markcell(GET_BIND(addr));
+
+}
+
+void gbcmark(void) {
+    int addr, i;
+
+    //oblistをマークする。
+    markoblist();
+    //oblistからつながっているcellをマークする。
+    addr = ep;
+    while (!(nullp(addr))) {
+        markcell(car(addr));
+        addr = cdr(addr);
+    }
+    //argstackからbindされているcellをマークする。
+    for (i = 0; i < ap; i++)
+        markcell(argstk[i]);
+
+}
+
+void gbcsweep(void) {
+    int addr;
+
+    addr = 0;
+    while (addr < HEAPSIZE) {
+        if (USED_CELL(addr))
+            NOMARK_CELL(addr);
+        else {
+            clrcell(addr);
+            SET_CDR(addr, hp);
+            hp = addr;
+        }
+        addr++;
+    }
+}
+
+void clrcell(int addr) {
+    SET_TAG(addr, EMP);
+    free(heap[addr].name);
+    heap[addr].name = NULL;
+    SET_CAR(addr, 0);
+    SET_CDR(addr, 0);
+    SET_BIND(addr, 0);
+}
+
+//自由セルが一定数を下回った場合にはgbcを起動する。
+void checkgbc(void) {
+    if (fc < FREESIZE)
+        gbc();
+}
+
 //---------------------リスト操作-------------------------
 int car(int addr) {
-    return(heap[addr].car);
+    return(GET_CAR(addr));
 }
 
 int caar(int addr) {
@@ -158,7 +249,7 @@ int cdar(int addr) {
 }
 
 int cdr(int addr) {
-    return(heap[addr].cdr);
+    return(GET_CDR(addr));
 }
 
 int cadr(int addr) {
@@ -168,15 +259,14 @@ int cadr(int addr) {
 int caddr(int addr) {
     return(car(cdr(cdr(addr))));
 }
-
 //アトムをくっつける関数
 int cons(int car, int cdr) {
     int addr;
 
     addr = freshcell();
-    heap[addr].tag = LIS;
-    heap[addr].car = car;
-    heap[addr].cdr = cdr;
+    SET_TAG(addr, LIS);
+    SET_CAR(addr, car);
+    SET_CDR(addr, cdr);
     return(addr);
 }
 
@@ -213,8 +303,8 @@ int makenum(int num) {
     int addr;
 
     addr = freshcell();
-    heap[addr].tag = NUM;
-    heap[addr].val.num = num;
+    SET_TAG(addr, NUM);
+    SET_NUMBER(addr, num);
     return(addr);
 }
 
@@ -223,9 +313,8 @@ int makesym(char* name) {
     int addr;
 
     addr = freshcell();
-    heap[addr].tag = SYM;
-    heap[addr].name = (char*)malloc(SYMSIZE); 
-    strcpy(heap[addr].name,name);
+    SET_TAG(addr, SYM);
+    SET_NAME(addr, name);
     return(addr);
 }
 
@@ -396,9 +485,9 @@ int readlist(void) {
 
 //-----print------------------------------------------------
 void print(int addr) {
-    switch (heap[addr].tag) {
-    case NUM:   printf("%d", heap[addr].val.num); break;
-    case SYM:   printf("%s", heap[addr].name); break;
+    switch (GET_TAG(addr)) {
+    case NUM:   printf("%d", GET_NUMBER(addr)); break;
+    case SYM:   printf("%s", GET_NAME(addr)); break;
     case SUBR:  printf("<subr>"); break;
     case FSUBR: printf("<fsubr>"); break;
     case FUNC:  printf("<function>"); break;
@@ -409,7 +498,7 @@ void print(int addr) {
 }
 
 void printlist(int addr) {
-    if (addr == 0 || addr == 1)
+    if (IS_NIL(addr))
         printf(")");
     else
         if ((!(listp(cdr(addr)))) && (!(nullp(cdr(addr))))) {
@@ -419,11 +508,10 @@ void printlist(int addr) {
             printf(")");
         }
         else {
-            print(heap[addr].car);
-            if (!((heap[addr].cdr == 0) || (heap[addr].cdr == 1))) {
+            print(GET_CAR(addr));
+            if (!(IS_NIL(GET_CDR(addr))))
                 printf(" ");
-            }
-            printlist(heap[addr].cdr);
+            printlist(GET_CDR(addr));
         }
 }
 //----------------------------------------------------------
@@ -448,9 +536,9 @@ int eval(int addr) {
                 return(res);
         }
     }
-    else//リストの場合
+    else //リストの場合
         if (listp(addr)) {
-            if ((symbolp(car(addr))) && (strcmp(heap[car(addr)].name,"quote") == 0))
+            if ((symbolp(car(addr))) && (HAS_NAME(car(addr), "quote")))
                 return(cadr(addr));
             if (numberp(car(addr)))
                 error(ARG_SYM_ERR, "eval", addr);
@@ -468,17 +556,17 @@ int eval(int addr) {
 int apply(int func, int args) {
     int symaddr, varlist, body, res;
 
-    symaddr = findsym(func); //組み込み関数の場合はdefsubrで定義している
+    symaddr = findsym(func);
     if (symaddr == -1)
         error(CANT_FIND_ERR, "apply", func);
     else {
-        switch (heap[symaddr].tag) {
-        case SUBR:  return((heap[symaddr].val.subr)(args));
-        case FSUBR: return((heap[symaddr].val.subr)(args));
-        case FUNC: {    varlist = car(heap[symaddr].val.bind);
-            body = cdr(heap[symaddr].val.bind);
+        switch (GET_TAG(symaddr)) {
+        case SUBR:  return((GET_SUBR(symaddr))(args));
+        case FSUBR: return((GET_SUBR(symaddr))(args));
+        case FUNC: {    varlist = car(GET_BIND(symaddr));
+            body = cdr(GET_BIND(symaddr));
             bindarg(varlist, args);
-            while (!((body == 0) || (body == 1))) {
+            while (!(IS_NIL(body))) {
                 res = eval(car(body));
                 body = cdr(body);
             }
@@ -494,7 +582,7 @@ void bindarg(int varlist, int arglist) {
     int arg1, arg2;
 
     push(ep);
-    while (!((varlist == 0) || (varlist == 1))) {
+    while (!(IS_NIL(varlist))) {
         arg1 = car(varlist);
         arg2 = car(arglist);
         assocsym(arg1, arg2);
@@ -512,7 +600,8 @@ int evlis(int addr) {
     int car_addr, cdr_addr;
 
     argpush(addr);
-    if ((addr ==0) ||(addr ==1)) {
+    checkgbc();
+    if (IS_NIL(addr)) {
         argpop();
         return(addr);
     }
@@ -528,35 +617,35 @@ int evlis(int addr) {
 
 //アトムかどうかタグで判定
 int atomp(int addr) {
-    if ((heap[addr].tag == NUM) || (heap[addr].tag == SYM))
+    if ((IS_NUMBER(addr)) || (IS_SYMBOL(addr)))
         return(1);
     else
         return(0);
 }
 //数かどうかタグで判定
 int numberp(int addr) {
-    if (heap[addr].tag == NUM)
+    if (IS_NUMBER(addr))
         return(1);
     else
         return(0);
 }
 //シンボルかどうかタグで判定
 int symbolp(int addr) {
-    if (heap[addr].tag == SYM)
+    if (IS_SYMBOL(addr))
         return(1);
     else
         return(0);
 }
 //リストかどうかタグで判定
 int listp(int addr) {
-    if ((heap[addr].tag == LIS) || (addr == 0) || (addr == 1))
+    if (IS_LIST(addr) || IS_NIL(addr))
         return(1);
     else
         return(0);
 }
 //番地が0か1の判定場合
 int nullp(int addr) {
-    if ((addr == 0) || (addr == 1))
+    if (IS_NIL(addr))
         return(1);
     else
         return(0);
@@ -565,42 +654,42 @@ int nullp(int addr) {
 //同じかどうか判定
 int eqp(int addr1, int addr2) {
     if ((numberp(addr1)) && (numberp(addr2))
-        && ((heap[addr1].val.num) == (heap[addr2].val.num)))
+        && ((GET_NUMBER(addr1)) == (GET_NUMBER(addr2))))
         return(1);
     else if ((symbolp(addr1)) && (symbolp(addr2))
-        && (strcmp(heap[addr1].name,heap[addr2].name) == 0))
+        && (SAME_NAME(addr1, addr2)))
         return(1);
     else
         return(0);
 }
 
-//組み込み関数かどうかタグで判定
+//組み込み関数(引数評価あり)かどうかタグで判定
 int subrp(int addr) {
     int val;
 
     val = findsym(addr);
     if (val != -1)
-        return(heap[addr].tag == SUBR);
+        return(IS_SUBR(val));
     else
         return(0);
 }
-
+//組み込み関数(引数評価なし)かどうかタグで判定
 int fsubrp(int addr) {
     int val;
 
     val = findsym(addr);
     if (val != -1)
-        return(heap[val].tag == FSUBR);
+        return(IS_FSUBR(val));
     else
         return(0);
 }
-
+//ユーザー関数かどうかタグで判定
 int functionp(int addr) {
     int val;
 
     val = findsym(addr);
     if (val != -1)
-        return(heap[val].tag == FUNC);
+        return(IS_FUNC(val));
     else
         return(0);
 }
@@ -648,7 +737,28 @@ void error(int errnum, char* fun, int arg) {
     longjmp(buf, 1);
 }
 
+//引数が正しいかどうかチェックする関数
+void checkarg(int test, char* fun, int arg) {
+    switch (test) {
+    case NUMLIST_TEST:  if (isnumlis(arg)) return; else error(ARG_NUM_ERR, fun, arg);
+    case SYMBOL_TEST:   if (symbolp(arg)) return; else error(ARG_SYM_ERR, fun, arg);
+    case NUMBER_TEST:   if (numberp(arg)) return; else error(ARG_NUM_ERR, fun, arg);
+    case LIST_TEST:     if (listp(arg)) return; else  error(ARG_LIS_ERR, fun, arg);
+    case LEN0_TEST:     if (length(arg) == 0) return; else error(ARG_LEN0_ERR, fun, arg);
+    case LEN1_TEST:     if (length(arg) == 1) return; else error(ARG_LEN1_ERR, fun, arg);
+    case LEN2_TEST:     if (length(arg) == 2) return; else error(ARG_LEN2_ERR, fun, arg);
+    case LEN3_TEST:     if (length(arg) == 3) return; else error(ARG_LEN3_ERR, fun, arg);
+    }
+}
 
+int isnumlis(int arg) {
+    while (!(IS_NIL(arg)))
+        if (numberp(car(arg)))
+            arg = cdr(arg);
+        else
+            return(0);
+    return(1);
+}
 
 //--------組込み関数---------------------------------
 //subrを環境に登録する。
@@ -666,9 +776,9 @@ void bindfunc(char* name, tag tag, int(*func)(int)) {
 
     sym = makesym(name);
     val = freshcell();
-    heap[val].tag = tag;
-    heap[val].val.subr = func;
-    heap[val].cdr = 0;
+    SET_TAG(val, tag);
+    SET_SUBR(val, func);
+    SET_CDR(val, 0);
     bindsym(sym, val);
 }
 
@@ -677,9 +787,9 @@ void bindfunc1(char* name, int addr) {
 
     sym = makesym(name);
     val = freshcell();
-    heap[val].tag = FUNC;
-    heap[val].val.bind = addr;
-    heap[val].cdr = 0;
+    SET_TAG(val, FUNC);
+    SET_BIND(val, addr);
+    SET_CDR(val, 0);
     bindsym(sym, val);
 }
 
@@ -699,7 +809,7 @@ void initsubr(void) {
     defsubr("null", f_nullp);
     defsubr("atom", f_atomp);
     defsubr("oblist", f_oblist);
-
+    defsubr("gbc", f_gbc);
     defsubr("read", f_read);
     defsubr("eval", f_eval);
     defsubr("apply", f_apply);
@@ -726,9 +836,10 @@ void initsubr(void) {
 int f_plus(int arglist) {
     int arg, res;
 
+    checkarg(NUMLIST_TEST, "+", arglist);
     res = 0;
-    while (!((arglist == 0) || (arglist == 1))) {
-        arg = heap[car(arglist)].val.num;
+    while (!(IS_NIL(arglist))) {
+        arg = GET_NUMBER(car(arglist));
         arglist = cdr(arglist);
         res = res + arg;
     }
@@ -738,10 +849,11 @@ int f_plus(int arglist) {
 int f_minus(int arglist) {
     int arg, res;
 
-    res = heap[car(arglist)].val.num;
+    checkarg(NUMLIST_TEST, "-", arglist);
+    res = GET_NUMBER(car(arglist));
     arglist = cdr(arglist);
-    while (!((arglist == 0) || (arglist == 1))) {
-        arg = heap[car(arglist)].val.num;
+    while (!(IS_NIL(arglist))) {
+        arg = GET_NUMBER(car(arglist));
         arglist = cdr(arglist);
         res = res - arg;
     }
@@ -751,10 +863,11 @@ int f_minus(int arglist) {
 int f_mult(int arglist) {
     int arg, res;
 
-    res = heap[car(arglist)].val.num;
+    checkarg(NUMLIST_TEST, "*", arglist);
+    res = GET_NUMBER(car(arglist));
     arglist = cdr(arglist);
-    while (!((arglist == 0) || (arglist == 1))) {
-        arg = heap[car(arglist)].val.num;
+    while (!(IS_NIL(arglist))) {
+        arg = GET_NUMBER(car(arglist));
         arglist = cdr(arglist);
         res = res * arg;
     }
@@ -764,10 +877,11 @@ int f_mult(int arglist) {
 int f_div(int arglist) {
     int arg, res;
 
-    res = heap[car(arglist)].val.num;
+    checkarg(NUMLIST_TEST, "/", arglist);
+    res = GET_NUMBER(car(arglist));
     arglist = cdr(arglist);
-    while (!((arglist == 0) || (arglist == 1))) {
-        arg = heap[car(arglist)].val.num;
+    while (!(IS_NIL(arglist))) {
+        arg = GET_NUMBER(car(arglist));
         if (arg == 0)
             error(DIV_BY_ZERO, "/", arglist);
         arglist = cdr(arglist);
@@ -779,6 +893,7 @@ int f_div(int arglist) {
 int f_exit(int arglist) {
     int addr;
 
+    checkarg(LEN0_TEST, "exit", arglist);
     for (addr = 0; addr < HEAPSIZE; addr++)
         free(heap[addr].name);
 
@@ -789,7 +904,8 @@ int f_exit(int arglist) {
 int f_heapdump(int arglist) {
     int arg1;
 
-    arg1 = heap[car(arglist)].val.num;
+    checkarg(LEN1_TEST, "hdmp", arglist);
+    arg1 = GET_NUMBER(car(arglist));
     heapdump(arg1, arg1 + 10);
     return(T);
 }
@@ -797,6 +913,7 @@ int f_heapdump(int arglist) {
 int f_car(int arglist) {
     int arg1;
 
+    checkarg(LEN1_TEST, "car", arglist);
     arg1 = car(arglist);
     return(car(arg1));
 }
@@ -804,6 +921,7 @@ int f_car(int arglist) {
 int f_cdr(int arglist) {
     int arg1;
 
+    checkarg(LEN1_TEST, "cdr", arglist);
     arg1 = car(arglist);
     return(cdr(arg1));
 }
@@ -811,18 +929,16 @@ int f_cdr(int arglist) {
 int f_cons(int arglist) {
     int arg1, arg2;
 
+    checkarg(LEN2_TEST, "cons", arglist);
     arg1 = car(arglist);
     arg2 = cadr(arglist);
     return(cons(arg1, arg2));
 }
 
-int f_list(int arglist) {
-    return(list(arglist));
-}
-
 int f_eq(int arglist) {
     int arg1, arg2;
 
+    checkarg(LEN2_TEST, "eq", arglist);
     arg1 = car(arglist);
     arg2 = cadr(arglist);
     if (eqp(arg1, arg2))
@@ -834,6 +950,7 @@ int f_eq(int arglist) {
 int f_nullp(int arglist) {
     int arg;
 
+    checkarg(LEN1_TEST, "null", arglist);
     arg = car(arglist);
     if (nullp(arg))
         return(T);
@@ -844,6 +961,7 @@ int f_nullp(int arglist) {
 int f_atomp(int arglist) {
     int arg;
 
+    checkarg(LEN1_TEST, "atom", arglist);
     arg = car(arglist);
     if (atomp(arg))
         return(T);
@@ -852,14 +970,22 @@ int f_atomp(int arglist) {
 }
 
 int f_length(int arglist) {
+    checkarg(LEN1_TEST, "length", arglist);
+    checkarg(LIST_TEST, "length", car(arglist));
     return(makenum(length(car(arglist))));
+}
+
+int f_list(int arglist) {
+    return(list(arglist));
 }
 
 int f_numeqp(int arglist) {
     int num1, num2;
 
-    num1 = heap[car(arglist)].val.num;
-    num2 = heap[cadr(arglist)].val.num;
+    checkarg(LEN2_TEST, "=", arglist);
+    checkarg(NUMLIST_TEST, "=", arglist);
+    num1 = GET_NUMBER(car(arglist));
+    num2 = GET_NUMBER(cadr(arglist));
 
     if (num1 == num2)
         return(T);
@@ -891,8 +1017,10 @@ int f_listp(int arglist) {
 int f_smaller(int arglist) {
     int num1, num2;
 
-    num1 = heap[car(arglist)].val.num;
-    num2 = heap[cadr(arglist)].val.num;
+    checkarg(LEN2_TEST, "<", arglist);
+    checkarg(NUMLIST_TEST, "<", arglist);
+    num1 = GET_NUMBER(car(arglist));
+    num2 = GET_NUMBER(cadr(arglist));
 
     if (num1 < num2)
         return(T);
@@ -903,8 +1031,10 @@ int f_smaller(int arglist) {
 int f_eqsmaller(int arglist) {
     int num1, num2;
 
-    num1 = heap[car(arglist)].val.num;
-    num2 = heap[cadr(arglist)].val.num;
+    checkarg(LEN2_TEST, "<=", arglist);
+    checkarg(NUMLIST_TEST, "<=", arglist);
+    num1 = GET_NUMBER(car(arglist));
+    num2 = GET_NUMBER(cadr(arglist));
 
     if (num1 <= num2)
         return(T);
@@ -915,8 +1045,10 @@ int f_eqsmaller(int arglist) {
 int f_greater(int arglist) {
     int num1, num2;
 
-    num1 = heap[car(arglist)].val.num;
-    num2 = heap[cadr(arglist)].val.num;
+    checkarg(LEN2_TEST, ">", arglist);
+    checkarg(NUMLIST_TEST, ">", arglist);
+    num1 = GET_NUMBER(car(arglist));
+    num2 = GET_NUMBER(cadr(arglist));
 
     if (num1 > num2)
         return(T);
@@ -924,11 +1056,14 @@ int f_greater(int arglist) {
         return(NIL);
 }
 
+
 int f_eqgreater(int arglist) {
     int num1, num2;
 
-    num1 = heap[car(arglist)].val.num;
-    num2 = heap[cadr(arglist)].val.num;
+    checkarg(LEN2_TEST, ">=", arglist);
+    checkarg(NUMLIST_TEST, ">=", arglist);
+    num1 = GET_NUMBER(car(arglist));
+    num2 = GET_NUMBER(cadr(arglist));
 
     if (num1 >= num2)
         return(T);
@@ -939,6 +1074,7 @@ int f_eqgreater(int arglist) {
 int f_oblist(int arglist) {
     int addr, addr1, res;
 
+    checkarg(LEN0_TEST, "oblist", arglist);
     res = NIL;
     addr = ep;
     while (!(nullp(addr))) {
@@ -949,11 +1085,18 @@ int f_oblist(int arglist) {
     return(res);
 }
 
+int f_gbc(int arglist) {
+    gbc();
+    return(T);
+}
+
 int f_read(int arglist) {
+    checkarg(LEN0_TEST, "read", arglist);
     return(read());
 }
 
 int f_print(int arglist) {
+    checkarg(LEN1_TEST, "print", arglist);
     print(car(arglist));
     printf("\n");
     return(T);
@@ -961,10 +1104,14 @@ int f_print(int arglist) {
 
 
 int f_eval(int arglist) {
+    checkarg(LEN1_TEST, "eval", arglist);
     return(eval(car(arglist)));
 }
 
 int f_apply(int arglist) {
+    checkarg(LEN2_TEST, "apply", arglist);
+    checkarg(SYMBOL_TEST, "apply", car(arglist));
+    checkarg(LIST_TEST, "apply", cadr(arglist));
     int arg1, arg2;
 
     arg1 = car(arglist);
@@ -977,6 +1124,8 @@ int f_apply(int arglist) {
 int f_setq(int arglist) {
     int arg1, arg2;
 
+    checkarg(LEN2_TEST, "setq", arglist);
+    checkarg(SYMBOL_TEST, "setq", car(arglist));
     arg1 = car(arglist);
     arg2 = eval(cadr(arglist));
     bindsym(arg1, arg2);
@@ -986,15 +1135,18 @@ int f_setq(int arglist) {
 int f_defun(int arglist) {
     int arg1, arg2;
 
+    checkarg(SYMBOL_TEST, "defun", car(arglist));
+    checkarg(LIST_TEST, "defun", cadr(arglist));
     arg1 = car(arglist);
     arg2 = cdr(arglist);
-    bindfunc1(heap[arg1].name, arg2);
+    bindfunc1(GET_NAME(arg1), arg2);
     return(T);
 }
 
 int f_if(int arglist) {
     int arg1, arg2, arg3;
 
+    checkarg(LEN3_TEST, "if", arglist);
     arg1 = car(arglist);
     arg2 = cadr(arglist);
     arg3 = car(cdr(cdr(arglist)));
@@ -1012,6 +1164,7 @@ int f_cond(int arglist) {
         return(NIL);
 
     arg1 = car(arglist);
+    checkarg(LIST_TEST, "cond", arg1);
     arg2 = car(arg1);
     arg3 = cdr(arg1);
 
