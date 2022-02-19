@@ -1,3 +1,4 @@
+
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <stdio.h>
@@ -15,6 +16,7 @@ jmp_buf buf; //goto
 
 int stack[STACKSIZE];
 int argstk[STACKSIZE];
+
 
 
 int main(void) {
@@ -40,11 +42,10 @@ repl:
     {
         return 0;
     }
-
 }
 
 
-//‰Šú‰»E©—R‰»ƒŠƒXƒg
+//åˆæœŸåŒ–ãƒ»è‡ªç”±åŒ–ãƒªã‚¹ãƒˆ
 void initcell(void) {
     int addr;
 
@@ -56,10 +57,10 @@ void initcell(void) {
     hp = 0;
     fc = HEAPSIZE;
 
-    //0”Ô’n‚ÍnilAŠÂ‹«ƒŒƒWƒXƒ^‚ğİ’è‚·‚éB‰ŠúŠÂ‹«
+    //0ç•ªåœ°ã¯nilã€ç’°å¢ƒãƒ¬ã‚¸ã‚¹ã‚¿ã‚’è¨­å®šã™ã‚‹ã€‚åˆæœŸç’°å¢ƒ
     ep = makesym("nil");
     assocsym(makesym("nil"), NIL);
-    assocsym(makesym("t"), makesym("t"));//ep = ((t.t)(nil.nil))‚Æ‚¢‚¤˜A‘zƒŠƒXƒg
+    assocsym(makesym("t"), makesym("t"));//ep = ((t.t)(nil.nil))ã¨ã„ã†é€£æƒ³ãƒªã‚¹ãƒˆ
 
     sp = 0;
     ap = 0;
@@ -75,8 +76,8 @@ int freshcell(void) {
     return(res);
 }
 
-//deep-bind‚É‚æ‚éBƒVƒ“ƒ{ƒ‹‚ªŒ©‚Â‚©‚ç‚È‚©‚Á‚½‚ç“o˜^B
-//Œ©‚Â‚©‚Á‚½‚ç‚»‚±‚É’l‚ğ‚¢‚ê‚Ä‚¨‚­B
+//deep-bindã«ã‚ˆã‚‹ã€‚ã‚·ãƒ³ãƒœãƒ«ãŒè¦‹ã¤ã‹ã‚‰ãªã‹ã£ãŸã‚‰ç™»éŒ²ã€‚
+//è¦‹ã¤ã‹ã£ãŸã‚‰ãã“ã«å€¤ã‚’ã„ã‚Œã¦ãŠãã€‚
 void bindsym(int sym, int val) {
     int addr;
 
@@ -88,18 +89,18 @@ void bindsym(int sym, int val) {
 }
 
 
-//•Ï”‚Ì‘©”›
-//ƒ[ƒJƒ‹•Ï”‚Ìê‡‚ÍˆÈ‘O‚Ì‘©”›‚ÉÏ‚İã‚°‚Ä‚¢‚­B
-//‚µ‚½‚ª‚Á‚Ä“¯‚¶•Ï”–¼‚ª‚ ‚Á‚½‚Æ‚µ‚Ä‚à‘‚«•Ï‚¦‚È‚¢B
+//å¤‰æ•°ã®æŸç¸›
+//ãƒ­ãƒ¼ã‚«ãƒ«å¤‰æ•°ã®å ´åˆã¯ä»¥å‰ã®æŸç¸›ã«ç©ã¿ä¸Šã’ã¦ã„ãã€‚
+//ã—ãŸãŒã£ã¦åŒã˜å¤‰æ•°åãŒã‚ã£ãŸã¨ã—ã¦ã‚‚æ›¸ãå¤‰ãˆãªã„ã€‚
 void assocsym(int sym, int val) {
     ep = cons(cons(sym, val), ep);
 }
 
 
-//ŠÂ‹«‚ÍŸ‚Ì‚æ‚¤‚É˜A‘zƒŠƒXƒg‚É‚È‚Á‚Ä‚¢‚éB
+//ç’°å¢ƒã¯æ¬¡ã®ã‚ˆã†ã«é€£æƒ³ãƒªã‚¹ãƒˆã«ãªã£ã¦ã„ã‚‹ã€‚
 // env = ((sym1 . val1) (sym2 . val2) ...)
-// assoc‚ÅƒVƒ“ƒ{ƒ‹‚É‘Î‰‚·‚é’l‚ğ’T‚·B
-//Œ©‚Â‚©‚ç‚È‚©‚Á‚½ê‡‚É‚Í-1‚ğ•Ô‚·B
+// assocã§ã‚·ãƒ³ãƒœãƒ«ã«å¯¾å¿œã™ã‚‹å€¤ã‚’æ¢ã™ã€‚
+//è¦‹ã¤ã‹ã‚‰ãªã‹ã£ãŸå ´åˆã«ã¯-1ã‚’è¿”ã™ã€‚
 int findsym(int sym) {
     int addr;
 
@@ -114,7 +115,7 @@ int findsym(int sym) {
 
 //-----------------------
 
-//-------ƒfƒoƒbƒO—p------------------    
+//-------ãƒ‡ãƒãƒƒã‚°ç”¨------------------    
 void cellprint(int addr) {
     switch (GET_FLAG(addr)) {
     case FRE:   printf("FRE "); break;
@@ -135,7 +136,7 @@ void cellprint(int addr) {
     printf("%s \n", GET_NAME(addr));
 }
 
-//ƒq[ƒvƒ_ƒ“ƒv  
+//ãƒ’ãƒ¼ãƒ—ãƒ€ãƒ³ãƒ—  
 void heapdump(int start, int end) {
     int i;
 
@@ -146,7 +147,7 @@ void heapdump(int start, int end) {
     }
 }
 
-//---------ƒKƒx[ƒWƒRƒŒƒNƒVƒ‡ƒ“-----------
+//---------ã‚¬ãƒ™ãƒ¼ã‚¸ã‚³ãƒ¬ã‚¯ã‚·ãƒ§ãƒ³-----------
 void gbc(void) {
     int addr;
 
@@ -155,7 +156,9 @@ void gbc(void) {
     gbcsweep();
     fc = 0;
     for (addr = 0; addr < HEAPSIZE; addr++)
+
         if (IS_EMPTY(addr))
+
             fc++;
     printf("exit GBC free=%d\n", fc); fflush(stdout);
 }
@@ -165,6 +168,7 @@ void markoblist(void) {
 
     addr = ep;
     while (!(nullp(addr))) {
+
         MARK_CELL(addr);
         addr = cdr(addr);
     }
@@ -176,29 +180,32 @@ void markcell(int addr) {
         return;
 
     MARK_CELL(addr);
+
     if (car(addr) != 0)
         markcell(car(addr));
 
     if (cdr(addr) != 0)
         markcell(cdr(addr));
 
+
     if ((GET_BIND(addr) != 0) && (IS_FUNC(addr)))
         markcell(GET_BIND(addr));
+
 
 }
 
 void gbcmark(void) {
     int addr, i;
 
-    //oblist‚ğƒ}[ƒN‚·‚éB
+    //oblistã‚’ãƒãƒ¼ã‚¯ã™ã‚‹ã€‚
     markoblist();
-    //oblist‚©‚ç‚Â‚È‚ª‚Á‚Ä‚¢‚écell‚ğƒ}[ƒN‚·‚éB
+    //oblistã‹ã‚‰ã¤ãªãŒã£ã¦ã„ã‚‹cellã‚’ãƒãƒ¼ã‚¯ã™ã‚‹ã€‚
     addr = ep;
     while (!(nullp(addr))) {
         markcell(car(addr));
         addr = cdr(addr);
     }
-    //argstack‚©‚çbind‚³‚ê‚Ä‚¢‚écell‚ğƒ}[ƒN‚·‚éB
+    //argstackã‹ã‚‰bindã•ã‚Œã¦ã„ã‚‹cellã‚’ãƒãƒ¼ã‚¯ã™ã‚‹ã€‚
     for (i = 0; i < ap; i++)
         markcell(argstk[i]);
 
@@ -209,11 +216,13 @@ void gbcsweep(void) {
 
     addr = 0;
     while (addr < HEAPSIZE) {
+
         if (USED_CELL(addr))
             NOMARK_CELL(addr);
         else {
             clrcell(addr);
             SET_CDR(addr, hp);
+
             hp = addr;
         }
         addr++;
@@ -221,21 +230,23 @@ void gbcsweep(void) {
 }
 
 void clrcell(int addr) {
+
     SET_TAG(addr, EMP);
     free(heap[addr].name);
     heap[addr].name = NULL;
     SET_CAR(addr, 0);
     SET_CDR(addr, 0);
     SET_BIND(addr, 0);
+
 }
 
-//©—RƒZƒ‹‚ªˆê’è”‚ğ‰º‰ñ‚Á‚½ê‡‚É‚Ígbc‚ğ‹N“®‚·‚éB
+//è‡ªç”±ã‚»ãƒ«ãŒä¸€å®šæ•°ã‚’ä¸‹å›ã£ãŸå ´åˆã«ã¯gbcã‚’èµ·å‹•ã™ã‚‹ã€‚
 void checkgbc(void) {
     if (fc < FREESIZE)
         gbc();
 }
 
-//---------------------ƒŠƒXƒg‘€ì-------------------------
+//---------------------ãƒªã‚¹ãƒˆæ“ä½œ-------------------------
 int car(int addr) {
     return(GET_CAR(addr));
 }
@@ -259,7 +270,7 @@ int cadr(int addr) {
 int caddr(int addr) {
     return(car(cdr(cdr(addr))));
 }
-//ƒAƒgƒ€‚ğ‚­‚Á‚Â‚¯‚éŠÖ”
+//ã‚¢ãƒˆãƒ ã‚’ãã£ã¤ã‘ã‚‹é–¢æ•°
 int cons(int car, int cdr) {
     int addr;
 
@@ -298,7 +309,7 @@ int list(int arglist) {
 //--------------------------------------------
 
 
-//”ƒAƒgƒ€‚ğ¶¬
+//æ•°ã‚¢ãƒˆãƒ ã‚’ç”Ÿæˆ
 int makenum(int num) {
     int addr;
 
@@ -308,7 +319,7 @@ int makenum(int num) {
     return(addr);
 }
 
-//ƒVƒ“ƒ{ƒ‹ƒAƒgƒ€‚Ì¶¬
+//ã‚·ãƒ³ãƒœãƒ«ã‚¢ãƒˆãƒ ã®ç”Ÿæˆ
 int makesym(char* name) {
     int addr;
 
@@ -318,7 +329,7 @@ int makesym(char* name) {
     return(addr);
 }
 
-//ƒXƒ^ƒbƒNBepŠÂ‹«ƒ|ƒCƒ“ƒ^‚Ì•Û‘¶—p
+//ã‚¹ã‚¿ãƒƒã‚¯ã€‚epç’°å¢ƒãƒã‚¤ãƒ³ã‚¿ã®ä¿å­˜ç”¨
 void push(int pt) {
     stack[sp++] = pt;
 }
@@ -327,7 +338,7 @@ int pop(void) {
     return(stack[--sp]);
 }
 
-//arglistƒXƒ^ƒbƒN‚Ìpush/pop
+//arglistã‚¹ã‚¿ãƒƒã‚¯ã®push/pop
 void argpush(int addr) {
     argstk[ap++] = addr;
 }
@@ -339,7 +350,7 @@ void argpop(void) {
 
 //------------read-----------------------------------------
 
-//--------ƒXƒLƒƒƒi[---------------------
+//--------ã‚¹ã‚­ãƒ£ãƒŠãƒ¼---------------------
 void gettoken(void) {
     char c;
     int pos;
@@ -522,12 +533,12 @@ void printlist(int addr) {
 int eval(int addr) {
     int res;
 
-    //ƒAƒgƒ€‚Ìê‡
+    //ã‚¢ãƒˆãƒ ã®å ´åˆ
     if (atomp(addr)) {
-        //”‚Ìê‡
+        //æ•°ã®å ´åˆ
         if (numberp(addr))
             return(addr);
-        //ƒVƒ“ƒ{ƒ‹‚Ìê‡
+        //ã‚·ãƒ³ãƒœãƒ«ã®å ´åˆ
         if (symbolp(addr)) {
             res = findsym(addr);
             if (res == -1)
@@ -536,7 +547,7 @@ int eval(int addr) {
                 return(res);
         }
     }
-    else //ƒŠƒXƒg‚Ìê‡
+    else //ãƒªã‚¹ãƒˆã®å ´åˆ
         if (listp(addr)) {
             if ((symbolp(car(addr))) && (HAS_NAME(car(addr), "quote")))
                 return(cadr(addr));
@@ -595,13 +606,15 @@ void unbind(void) {
     ep = pop();
 }
 
-//•Ï”‚ğ‘©”›‚³‚ê‚Ä‚¢‚é’l‚É’u‚«Š·‚¦‚é
+//å¤‰æ•°ã‚’æŸç¸›ã•ã‚Œã¦ã„ã‚‹å€¤ã«ç½®ãæ›ãˆã‚‹
 int evlis(int addr) {
     int car_addr, cdr_addr;
 
     argpush(addr);
     checkgbc();
+
     if (IS_NIL(addr)) {
+
         argpop();
         return(addr);
     }
@@ -615,35 +628,35 @@ int evlis(int addr) {
     }
 }
 
-//ƒAƒgƒ€‚©‚Ç‚¤‚©ƒ^ƒO‚Å”»’è
+//ã‚¢ãƒˆãƒ ã‹ã©ã†ã‹ã‚¿ã‚°ã§åˆ¤å®š
 int atomp(int addr) {
     if ((IS_NUMBER(addr)) || (IS_SYMBOL(addr)))
         return(1);
     else
         return(0);
 }
-//”‚©‚Ç‚¤‚©ƒ^ƒO‚Å”»’è
+//æ•°ã‹ã©ã†ã‹ã‚¿ã‚°ã§åˆ¤å®š
 int numberp(int addr) {
     if (IS_NUMBER(addr))
         return(1);
     else
         return(0);
 }
-//ƒVƒ“ƒ{ƒ‹‚©‚Ç‚¤‚©ƒ^ƒO‚Å”»’è
+//ã‚·ãƒ³ãƒœãƒ«ã‹ã©ã†ã‹ã‚¿ã‚°ã§åˆ¤å®š
 int symbolp(int addr) {
     if (IS_SYMBOL(addr))
         return(1);
     else
         return(0);
 }
-//ƒŠƒXƒg‚©‚Ç‚¤‚©ƒ^ƒO‚Å”»’è
+//ãƒªã‚¹ãƒˆã‹ã©ã†ã‹ã‚¿ã‚°ã§åˆ¤å®š
 int listp(int addr) {
     if (IS_LIST(addr) || IS_NIL(addr))
         return(1);
     else
         return(0);
 }
-//”Ô’n‚ª0‚©1‚Ì”»’èê‡
+//ç•ªåœ°ãŒ0ã‹1ã®åˆ¤å®šå ´åˆ
 int nullp(int addr) {
     if (IS_NIL(addr))
         return(1);
@@ -651,7 +664,7 @@ int nullp(int addr) {
         return(0);
 }
 
-//“¯‚¶‚©‚Ç‚¤‚©”»’è
+//åŒã˜ã‹ã©ã†ã‹åˆ¤å®š
 int eqp(int addr1, int addr2) {
     if ((numberp(addr1)) && (numberp(addr2))
         && ((GET_NUMBER(addr1)) == (GET_NUMBER(addr2))))
@@ -663,7 +676,7 @@ int eqp(int addr1, int addr2) {
         return(0);
 }
 
-//‘g‚İ‚İŠÖ”(ˆø”•]‰¿‚ ‚è)‚©‚Ç‚¤‚©ƒ^ƒO‚Å”»’è
+//çµ„ã¿è¾¼ã¿é–¢æ•°(å¼•æ•°è©•ä¾¡ã‚ã‚Š)ã‹ã©ã†ã‹ã‚¿ã‚°ã§åˆ¤å®š
 int subrp(int addr) {
     int val;
 
@@ -673,7 +686,7 @@ int subrp(int addr) {
     else
         return(0);
 }
-//‘g‚İ‚İŠÖ”(ˆø”•]‰¿‚È‚µ)‚©‚Ç‚¤‚©ƒ^ƒO‚Å”»’è
+//çµ„ã¿è¾¼ã¿é–¢æ•°(å¼•æ•°è©•ä¾¡ãªã—)ã‹ã©ã†ã‹ã‚¿ã‚°ã§åˆ¤å®š
 int fsubrp(int addr) {
     int val;
 
@@ -683,7 +696,7 @@ int fsubrp(int addr) {
     else
         return(0);
 }
-//ƒ†[ƒU[ŠÖ”‚©‚Ç‚¤‚©ƒ^ƒO‚Å”»’è
+//ãƒ¦ãƒ¼ã‚¶ãƒ¼é–¢æ•°ã‹ã©ã†ã‹ã‚¿ã‚°ã§åˆ¤å®š
 int functionp(int addr) {
     int val;
 
@@ -694,7 +707,7 @@ int functionp(int addr) {
         return(0);
 }
 
-//-------ƒGƒ‰[ˆ—------
+//-------ã‚¨ãƒ©ãƒ¼å‡¦ç†------
 void error(int errnum, char* fun, int arg) {
     switch (errnum) {
     case CANT_FIND_ERR: {printf("%s can't find definition of ", fun);
@@ -737,7 +750,9 @@ void error(int errnum, char* fun, int arg) {
     longjmp(buf, 1);
 }
 
-//ˆø”‚ª³‚µ‚¢‚©‚Ç‚¤‚©ƒ`ƒFƒbƒN‚·‚éŠÖ”
+
+//å¼•æ•°ãŒæ­£ã—ã„ã‹ã©ã†ã‹ãƒã‚§ãƒƒã‚¯ã™ã‚‹é–¢æ•°
+
 void checkarg(int test, char* fun, int arg) {
     switch (test) {
     case NUMLIST_TEST:  if (isnumlis(arg)) return; else error(ARG_NUM_ERR, fun, arg);
@@ -752,7 +767,9 @@ void checkarg(int test, char* fun, int arg) {
 }
 
 int isnumlis(int arg) {
+
     while (!(IS_NIL(arg)))
+
         if (numberp(car(arg)))
             arg = cdr(arg);
         else
@@ -760,13 +777,13 @@ int isnumlis(int arg) {
     return(1);
 }
 
-//--------‘g‚İŠÖ”---------------------------------
-//subr‚ğŠÂ‹«‚É“o˜^‚·‚éB
+//--------çµ„è¾¼ã¿é–¢æ•°---------------------------------
+//subrã‚’ç’°å¢ƒã«ç™»éŒ²ã™ã‚‹ã€‚
 void defsubr(char* symname, int(*func)(int)) {
     bindfunc(symname, SUBR, func);
 }
 
-//fsubr(ˆø”‚ğ•]‰¿‚µ‚È‚¢‘gŠÖ”j‚Ì“o˜^B
+//fsubr(å¼•æ•°ã‚’è©•ä¾¡ã—ãªã„çµ„è¾¼é–¢æ•°ï¼‰ã®ç™»éŒ²ã€‚
 void deffsubr(char* symname, int(*func)(int)) {
     bindfunc(symname, FSUBR, func);
 }
@@ -831,15 +848,17 @@ void initsubr(void) {
 }
    
 
-//-----‘g‚İ‚İŠÖ”’è‹`---------------------
+//-----çµ„ã¿è¾¼ã¿é–¢æ•°å®šç¾©---------------------
 
 int f_plus(int arglist) {
     int arg, res;
 
     checkarg(NUMLIST_TEST, "+", arglist);
     res = 0;
+
     while (!(IS_NIL(arglist))) {
         arg = GET_NUMBER(car(arglist));
+
         arglist = cdr(arglist);
         res = res + arg;
     }
@@ -850,10 +869,12 @@ int f_minus(int arglist) {
     int arg, res;
 
     checkarg(NUMLIST_TEST, "-", arglist);
+
     res = GET_NUMBER(car(arglist));
     arglist = cdr(arglist);
     while (!(IS_NIL(arglist))) {
         arg = GET_NUMBER(car(arglist));
+
         arglist = cdr(arglist);
         res = res - arg;
     }
@@ -864,10 +885,13 @@ int f_mult(int arglist) {
     int arg, res;
 
     checkarg(NUMLIST_TEST, "*", arglist);
+
     res = GET_NUMBER(car(arglist));
     arglist = cdr(arglist);
     while (!(IS_NIL(arglist))) {
         arg = GET_NUMBER(car(arglist));
+
+
         arglist = cdr(arglist);
         res = res * arg;
     }
@@ -878,10 +902,12 @@ int f_div(int arglist) {
     int arg, res;
 
     checkarg(NUMLIST_TEST, "/", arglist);
+
     res = GET_NUMBER(car(arglist));
     arglist = cdr(arglist);
     while (!(IS_NIL(arglist))) {
         arg = GET_NUMBER(car(arglist));
+
         if (arg == 0)
             error(DIV_BY_ZERO, "/", arglist);
         arglist = cdr(arglist);
@@ -905,7 +931,9 @@ int f_heapdump(int arglist) {
     int arg1;
 
     checkarg(LEN1_TEST, "hdmp", arglist);
+
     arg1 = GET_NUMBER(car(arglist));
+
     heapdump(arg1, arg1 + 10);
     return(T);
 }
@@ -984,8 +1012,10 @@ int f_numeqp(int arglist) {
 
     checkarg(LEN2_TEST, "=", arglist);
     checkarg(NUMLIST_TEST, "=", arglist);
+
     num1 = GET_NUMBER(car(arglist));
     num2 = GET_NUMBER(cadr(arglist));
+
 
     if (num1 == num2)
         return(T);
@@ -1019,8 +1049,10 @@ int f_smaller(int arglist) {
 
     checkarg(LEN2_TEST, "<", arglist);
     checkarg(NUMLIST_TEST, "<", arglist);
+
     num1 = GET_NUMBER(car(arglist));
     num2 = GET_NUMBER(cadr(arglist));
+
 
     if (num1 < num2)
         return(T);
@@ -1033,8 +1065,10 @@ int f_eqsmaller(int arglist) {
 
     checkarg(LEN2_TEST, "<=", arglist);
     checkarg(NUMLIST_TEST, "<=", arglist);
+
     num1 = GET_NUMBER(car(arglist));
     num2 = GET_NUMBER(cadr(arglist));
+
 
     if (num1 <= num2)
         return(T);
@@ -1047,8 +1081,10 @@ int f_greater(int arglist) {
 
     checkarg(LEN2_TEST, ">", arglist);
     checkarg(NUMLIST_TEST, ">", arglist);
+
     num1 = GET_NUMBER(car(arglist));
     num2 = GET_NUMBER(cadr(arglist));
+
 
     if (num1 > num2)
         return(T);
@@ -1062,8 +1098,10 @@ int f_eqgreater(int arglist) {
 
     checkarg(LEN2_TEST, ">=", arglist);
     checkarg(NUMLIST_TEST, ">=", arglist);
+
     num1 = GET_NUMBER(car(arglist));
     num2 = GET_NUMBER(cadr(arglist));
+
 
     if (num1 >= num2)
         return(T);
@@ -1183,3 +1221,4 @@ int f_begin(int arglist) {
     }
     return(res);
 }
+
