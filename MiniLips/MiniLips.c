@@ -191,6 +191,8 @@ void markcell(int addr) {
     if ((GET_BIND(addr) != 0) && (IS_FUNC(addr)))
         markcell(GET_BIND(addr));
 
+    if ((GET_BIND(addr) != 0) && IS_MACRO(addr))
+        markcell(GET_BIND(addr));
 
 }
 
@@ -216,7 +218,7 @@ void gbcsweep(void) {
 
     addr = 0;
     while (addr < HEAPSIZE) {
-
+        　
         if (USED_CELL(addr))
             NOMARK_CELL(addr);
         else {
