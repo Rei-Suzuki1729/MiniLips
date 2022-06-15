@@ -16,7 +16,8 @@ typedef enum
     LIS,//リスト
     SUBR,//組み込み関数
     FSUBR,//特殊な組み込み関数
-    FUNC
+    FUNC,//関数タグ
+    MACRO
 }tag;
 
 typedef enum
@@ -94,6 +95,7 @@ int ap; //arglist pointer
 #define IS_SUBR(addr)       heap[addr].tag == SUBR
 #define IS_FSUBR(addr)      heap[addr].tag == FSUBR
 #define IS_FUNC(addr)       heap[addr].tag == FUNC
+#define IS_MACRO(addr)      heap[addr].tag == MACRO
 #define IS_EMPTY(addr)      heap[addr].tag  == EMP
 #define HAS_NAME(addr,x)    strcmp(heap[addr].name,x) == 0
 #define SAME_NAME(addr1,addr2) strcmp(heap[addr1].name, heap[addr2].name) == 0

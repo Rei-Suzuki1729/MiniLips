@@ -559,13 +559,15 @@ int eval(int addr) {
                 return(apply(car(addr), cdr(addr)));
             if (functionp(car(addr)))
                 return(apply(car(addr), evlis(cdr(addr))));
+            if (macrop(car(addr)))
+                return(apply(car(addr), cdr(addr)));
         }
     error(CANT_FIND_ERR, "eval", addr);
     return(0);
 }
 
 int apply(int func, int args) {
-    int symaddr, varlist, body, res;
+    int symaddr, varlist, body, res,macrofunc;
 
     symaddr = findsym(func);
     if (symaddr == -1)
@@ -582,7 +584,19 @@ int apply(int func, int args) {
                 body = cdr(body);
             }
             unbind();
-            return(res); }
+            return(res);   }
+        case MACRO: {   macrofunc = GET_BIND(symaddr);
+            varlist = car(GET_BIND(macrofunc));
+            body = cdr(GET_BIND(macrofunc));
+            bindarg(varlist, args);
+            while (!(IS_NIL(body))) {
+                res = eval(car(body));
+                body = cdr(body);}
+            unbind();
+            //--------------
+            res = eval(res);
+            return(res);
+        }
         default:    error(ILLEGAL_OBJ_ERR, "eval", symaddr);
         }
     }
@@ -707,6 +721,16 @@ int functionp(int addr) {
         return(0);
 }
 
+int macrop(int addr) {
+    int val;
+
+    val = findsym(addr);
+    if (val != -1)
+        return(IS_MACRO(val));
+    else
+        return(0);
+}
+
 //-------エラー処理------
 void error(int errnum, char* fun, int arg) {
     switch (errnum) {
@@ -810,6 +834,21 @@ void bindfunc1(char* name, int addr) {
     bindsym(sym, val);
 }
 
+void bindmacro(char* name, int addr) {
+    int sym, val1, val2;
+
+    sym = makesym(name);
+    val1 = freshcell();
+    SET_TAG(val1, FUNC);
+    SET_BIND(val1, addr);
+    SET_CDR(val1, 0);
+    val2 = freshcell();
+    SET_TAG(val2, MACRO);
+    SET_BIND(val2, val1);
+    SET_CDR(val2, 0);
+    bindsym(sym, val2);
+}
+
 void initsubr(void) {
     defsubr("+", f_plus);
     defsubr("-", f_minus);
@@ -845,6 +884,7 @@ void initsubr(void) {
     deffsubr("if", f_if);
     deffsubr("begin", f_begin);
     deffsubr("cond", f_cond);
+    deffsubr("defmacro", f_defmacro);
 }
    
 
@@ -1222,3 +1262,13 @@ int f_begin(int arglist) {
     return(res);
 }
 
+int f_defmacro(int arglist) {
+    int arg1, arg2;
+
+    checkarg(SYMBOL_TEST, "defmacro", car(arglist));
+    checkarg(LIST_TEST, "defmacro", cadr(arglist));
+    arg1 = car(arglist);
+    arg2 = cdr(arglist);
+    bindmacro(GET_NAME(arg1), arg2);
+    return(T);
+}
