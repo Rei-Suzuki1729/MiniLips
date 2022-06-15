@@ -16,6 +16,7 @@ jmp_buf buf; //goto
 
 int stack[STACKSIZE];
 int argstk[STACKSIZE];
+int cell_hash_table[HASHTBSIZE];
 
 
 
@@ -112,7 +113,51 @@ int findsym(int sym) {
         return(cdr(addr));
 }
 
+//シンボルの唯一性を確保するためのもの
+int getsym(char* name, int index) {
+    int addr;
 
+    addr = cell_hash_table[index];
+
+    while (addr != NIL) {
+        if (strcmp(name, GET_NAME(car(addr))) == 0)
+            return(car(addr));
+        else
+            addr = cdr(addr);
+    }
+    return(0);
+}
+
+int addsym(char* name, int index) {
+    int addr, res;
+
+    addr = cell_hash_table[index];
+    addr = cons(res = makesym1(name), addr);
+    cell_hash_table[index] = addr;
+    return(res);
+}
+
+int makesym1(char* name) {
+    int addr;
+
+    addr = freshcell();
+    SET_TAG(addr, SYM);
+    SET_NAME(addr, name);
+    return(addr);
+}
+
+//ハッシュ値を計算する。文字の各アスキーコードを足して
+//その合計をHASHTBSIZE(107)で割った余り
+int hash(char* name) {
+    int res;
+
+    res = 0;
+    while (*name != NUL) {
+        res = res + (int)*name;
+        name++;
+    }
+    return(res % HASHTBSIZE);
+}
 //-----------------------
 
 //-------デバッグ用------------------    
@@ -211,6 +256,9 @@ void gbcmark(void) {
     for (i = 0; i < ap; i++)
         markcell(argstk[i]);
 
+    //シンボルハッシュテーブルにつながっているcellをマークする。
+    for (i = 0; i < HASHTBSIZE; i++)
+        markcell(cell_hash_table[i]);
 }
 
 void gbcsweep(void) {
@@ -218,7 +266,6 @@ void gbcsweep(void) {
 
     addr = 0;
     while (addr < HEAPSIZE) {
-        　
         if (USED_CELL(addr))
             NOMARK_CELL(addr);
         else {
@@ -323,12 +370,13 @@ int makenum(int num) {
 
 //シンボルアトムの生成
 int makesym(char* name) {
-    int addr;
+    int index, res;
 
-    addr = freshcell();
-    SET_TAG(addr, SYM);
-    SET_NAME(addr, name);
-    return(addr);
+    index = hash(name);
+    if ((res = getsym(name, index)) != 0)
+        return(res);
+    else
+        return(addsym(name, index));
 }
 
 //スタック。ep環境ポインタの保存用
@@ -682,7 +730,9 @@ int nullp(int addr) {
 
 //同じかどうか判定
 int eqp(int addr1, int addr2) {
-    if ((numberp(addr1)) && (numberp(addr2))
+    if (addr1 == addr2)
+        return(1);
+    else if ((numberp(addr1)) && (numberp(addr2))
         && ((GET_NUMBER(addr1)) == (GET_NUMBER(addr2))))
         return(1);
     else if ((symbolp(addr1)) && (symbolp(addr2))

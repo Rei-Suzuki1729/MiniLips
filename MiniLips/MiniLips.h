@@ -5,7 +5,7 @@
 #define BUFSIZE 256
 #define NIL 0
 #define T 4
-
+#define HASHTBSIZE 107
 
 
 typedef enum
