@@ -45,6 +45,9 @@ typedef enum {
     RPAREN,// ")"
     QUOTE, // "\"
     DOT,   // "."
+    BACKQUOTE,
+    COMMA,
+    ATMARK,
     NUMBER,
     SYMBOL,
     OTHER
@@ -146,6 +149,10 @@ int freshcell(void);
 void bindsym(int sym, int val);
 void assocsym(int sym, int val);
 int findsym(int sym);
+int getsym(char* name, int index);
+int addsym(char* name, int index);
+int makesym1(char* name);
+int hash(char* name);
 void cellprint(int addr);
 void heapdump(int start, int end);
 void markoblist(void);
@@ -163,9 +170,11 @@ int caar(int addr);
 int cdar(int addr);
 int cadr(int addr);
 int caddr(int addr);
+int cadar(int addr);
 int assoc(int sym, int lis);
 int length(int addr);
 int list(int addr);
+int append(int x, int y);
 //-------------------------
 
 int makenum(int num);
@@ -200,6 +209,7 @@ int apply(int func, int arg);
 int subrp(int addr);
 int fsubrp(int addr);
 int functionp(int addr);
+int macrop(int addr);
 void initsubr(void);
 void defsubr(char* symname, int(*func)(int));
 void deffsubr(char* symname, int(*func)(int));
@@ -225,12 +235,14 @@ int f_cdr(int arglist);
 int f_cons(int arglist);
 int f_length(int arglist);
 int f_list(int arglist);
+int f_append(int arglist);
 int f_nullp(int arglist);
 int f_atomp(int arglist);
 int f_eq(int arglist);
 int f_setq(int arglist);
 int f_oblist(int arglist);
 int f_defun(int arglist);
+int f_defmacro(int arglist);
 int f_if(int arglist);
 int f_cond(int arglist);
 int f_numeqp(int arglist);
@@ -248,3 +260,7 @@ int f_read(int arglist);
 int f_print(int arglist);
 int f_begin(int arglist);
 
+int quasi_transfer1(int x);
+int quasi_transfer2(int x, int n);
+int list2(int x, int y);
+int list3(int x, int y, int z);
