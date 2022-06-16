@@ -1,4 +1,3 @@
-
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <stdio.h>
@@ -21,7 +20,7 @@ int cell_hash_table[HASHTBSIZE];
 
 
 int main(void) {
-    printf("MiniLis Ver0.01\n");
+    printf("MiniLis Ver0.02\n");
     initcell();
     initsubr();
     int ret = setjmp(buf);
@@ -174,6 +173,7 @@ void cellprint(int addr) {
     case SUBR:  printf("SUBR   "); break;
     case FSUBR: printf("FSUBR  "); break;
     case FUNC:  printf("FUNC   "); break;
+    case MACRO: printf("MACRO  "); break;
     }
     printf("%07d ", GET_CAR(addr));
     printf("%07d ", GET_CDR(addr));
@@ -319,6 +319,11 @@ int cadr(int addr) {
 int caddr(int addr) {
     return(car(cdr(cdr(addr))));
 }
+
+int cadar(int addr) {
+    return(car(cdr(car(addr))));
+}
+
 //アトムをくっつける関数
 int cons(int car, int cdr) {
     int addr;
@@ -354,6 +359,13 @@ int list(int arglist) {
         return(NIL);
     else
         return(cons(car(arglist), list(cdr(arglist))));
+}
+
+int append(int x, int y) {
+    if (nullp(x))
+        return(y);
+    else
+        return(cons(car(x), append(cdr(x), y)));
 }
 //--------------------------------------------
 
@@ -431,10 +443,14 @@ void gettoken(void) {
     case ')':   stok.type = RPAREN; break;
     case '\'':  stok.type = QUOTE; break;
     case '.':   stok.type = DOT; break;
+    case '`':   stok.type = BACKQUOTE; break;
+    case ',':   stok.type = COMMA; break;
+    case '@':   stok.type = ATMARK; break;
     default: {
         pos = 0; stok.buf[pos++] = c;
         while (((c = getchar()) != EOL) && (pos < BUFSIZE) &&
-            (c != SPACE) && (c != '(') && (c != ')'))
+            (c != SPACE) && (c != '(') && (c != ')') &&
+            (c != '`') && (c != ',') && (c != '@'))
             stok.buf[pos++] = c;
 
         stok.buf[pos] = NUL;
@@ -457,7 +473,7 @@ int numbertoken(char buf[]) {
     char c;
 
     if ((buf[0] == '+') || (buf[0] == '-')) {
-        if (buf[1] == NUL) 
+        if (buf[1] == NUL)
             return(0); // case {+,-} => symbol
         i = 1;
         while ((c = buf[i]) != NUL)
@@ -515,6 +531,15 @@ int read(void) {
     case NUMBER:    return(makenum(atoi(stok.buf)));
     case SYMBOL:    return(makesym(stok.buf));
     case QUOTE:     return(cons(makesym("quote"), cons(read(), NIL)));
+    case BACKQUOTE: return(cons(makesym("quasi-quote"), cons(read(), NIL)));
+    case COMMA: {gettoken();
+        if (stok.type == ATMARK)
+            return(cons(makesym("unquote-splicing"), cons(read(), NIL)));
+        else {
+            stok.flag = BACK;
+            return(cons(makesym("unquote"), cons(read(), NIL)));
+        }
+    }
     case LPAREN:    return(readlist());
     default:        break;
     }
@@ -552,6 +577,7 @@ void print(int addr) {
     case SUBR:  printf("<subr>"); break;
     case FSUBR: printf("<fsubr>"); break;
     case FUNC:  printf("<function>"); break;
+    case MACRO: printf("<macro>"); break;
     case LIS: { printf("(");
         printlist(addr); break; }
     default:    printf("<undef>"); break;
@@ -601,6 +627,8 @@ int eval(int addr) {
         if (listp(addr)) {
             if ((symbolp(car(addr))) && (HAS_NAME(car(addr), "quote")))
                 return(cadr(addr));
+            if ((symbolp(car(addr))) && (HAS_NAME(car(addr), "quasi-quote")))
+                return(eval(quasi_transfer2(cadr(addr), 0)));
             if (numberp(car(addr)))
                 error(ARG_SYM_ERR, "eval", addr);
             if (subrp(car(addr)))
@@ -617,7 +645,7 @@ int eval(int addr) {
 }
 
 int apply(int func, int args) {
-    int symaddr, varlist, body, res,macrofunc;
+    int symaddr, varlist, body, res, macrofunc;
 
     symaddr = findsym(func);
     if (symaddr == -1)
@@ -641,13 +669,14 @@ int apply(int func, int args) {
             bindarg(varlist, args);
             while (!(IS_NIL(body))) {
                 res = eval(car(body));
-                body = cdr(body);}
+                body = cdr(body);
+            }
             unbind();
             //--------------
             res = eval(res);
             return(res);
         }
-        default:    error(ILLEGAL_OBJ_ERR, "eval", symaddr);
+        default:    error(ILLEGAL_OBJ_ERR, "apply", symaddr);
         }
     }
     return(0);
@@ -913,6 +942,7 @@ void initsubr(void) {
     defsubr("cdr", f_cdr);
     defsubr("cons", f_cons);
     defsubr("list", f_list);
+    defsubr("append", f_append);
     defsubr("eq", f_eq);
     defsubr("null", f_nullp);
     defsubr("atom", f_atomp);
@@ -938,7 +968,7 @@ void initsubr(void) {
     deffsubr("cond", f_cond);
     deffsubr("defmacro", f_defmacro);
 }
-   
+
 
 //-----組み込み関数定義---------------------
 
@@ -1097,6 +1127,11 @@ int f_length(int arglist) {
 
 int f_list(int arglist) {
     return(list(arglist));
+}
+
+int f_append(int arglist) {
+    checkarg(LEN2_TEST, "append", arglist);
+    return(append(car(arglist), cadr(arglist)));
 }
 
 int f_numeqp(int arglist) {
@@ -1272,6 +1307,16 @@ int f_defun(int arglist) {
     bindfunc1(GET_NAME(arg1), arg2);
     return(T);
 }
+int f_defmacro(int arglist) {
+    int arg1, arg2;
+
+    checkarg(SYMBOL_TEST, "defmacro", car(arglist));
+    checkarg(LIST_TEST, "defmacro", cadr(arglist));
+    arg1 = car(arglist);
+    arg2 = cdr(arglist);
+    bindmacro(GET_NAME(arg1), arg2);
+    return(T);
+}
 
 int f_if(int arglist) {
     int arg1, arg2, arg3;
@@ -1314,13 +1359,58 @@ int f_begin(int arglist) {
     return(res);
 }
 
-int f_defmacro(int arglist) {
-    int arg1, arg2;
+//--------準クオート---------------
+int quasi_transfer1(int x) {
+    if (nullp(x))
+        return(NIL);
+    else if (atomp(x))
+        return(list2(makesym("quote"), x));
+    else if (listp(x) && eqp(caar(x), makesym("unquote")))
+        return(list3(makesym("cons"), cadar(x), quasi_transfer1(cdr(x))));
+    else if (listp(x) && eqp(caar(x), makesym("unquote-splicing")))
+        return(list3(makesym("append"), cadar(x), quasi_transfer1(cdr(x))));
+    else
+        return(list3(makesym("cons"), quasi_transfer1(car(x)), quasi_transfer1(cdr(x))));
+}
 
-    checkarg(SYMBOL_TEST, "defmacro", car(arglist));
-    checkarg(LIST_TEST, "defmacro", cadr(arglist));
-    arg1 = car(arglist);
-    arg2 = cdr(arglist);
-    bindmacro(GET_NAME(arg1), arg2);
-    return(T);
+int list2(int x, int y) {
+    return(cons(x, cons(y, NIL)));
+}
+
+int list3(int x, int y, int z) {
+    return(cons(x, cons(y, cons(z, NIL))));
+}
+
+
+
+
+int quasi_transfer2(int x, int n) {
+    //printf("%d",n); print(x);printf("\n");
+
+    if (nullp(x))
+        return(NIL);
+    else if (atomp(x))
+        return(list2(makesym("quote"), x));
+    else if (listp(x) && eqp(car(x), makesym("unquote")) && n == 0)
+        return(cadr(x));
+    else if (listp(x) && eqp(car(x), makesym("unquote-splicing")) && n == 0)
+        return(cadr(x));
+    else if (listp(x) && eqp(car(x), makesym("quasi-quote")))
+        return(list3(makesym("list"),
+            list2(makesym("quote"), makesym("quasi-quote")),
+            quasi_transfer2(cadr(x), n + 1)));
+    else if (listp(x) && eqp(caar(x), makesym("unquote")) && n == 0)
+        return(list3(makesym("cons"), cadar(x), quasi_transfer2(cdr(x), n)));
+    else if (listp(x) && eqp(caar(x), makesym("unquote-splicing")) && n == 0)
+        return(list3(makesym("append"), cadar(x), quasi_transfer2(cdr(x), n)));
+    else if (listp(x) && eqp(caar(x), makesym("unquote")))
+        return(list3(makesym("cons"),
+            list3(makesym("list"), list2(makesym("quote"), makesym("unquote")), quasi_transfer2(cadar(x), n - 1)),
+            quasi_transfer2(cdr(x), n)));
+    else if (listp(x) && eqp(caar(x), makesym("unquote-splicing")))
+        return(list3(makesym("cons"),
+            list3(makesym("list"), list2(makesym("quote"), makesym("unquote-splicing")), quasi_transfer2(cadar(x), n - 1)),
+            quasi_transfer2(cdr(x), n)));
+    else
+        return(list3(makesym("cons"), quasi_transfer2(car(x), n), quasi_transfer2(cdr(x), n)));
 }
