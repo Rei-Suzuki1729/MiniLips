@@ -256,6 +256,9 @@ void gbcmark(void) {
     for (i = 0; i < ap; i++)
         markcell(argstk[i]);
 
+    //シンボルハッシュテーブルにつながっているcellをマークする。
+    for (i = 0; i < HASHTBSIZE; i++)
+        markcell(cell_hash_table[i]);
 }
 
 void gbcsweep(void) {
